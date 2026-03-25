@@ -1042,26 +1042,15 @@ function uploadPDF(data) {
   var formData = new FormData();
   formData.append("file", data.pdfBlob, data.pdfFilename);
 
-  /* Try tmpfiles.org first, then file.io as fallback */
-  function tryUpload(url) {
-    return fetch(url, { method: "POST", body: formData })
-      .then(function(r) { return r.json(); });
-  }
-
-  return tryUpload("https://tmpfiles.org/api/v1/upload")
-    .then(function(resp) {
-      /* tmpfiles.org returns {data:{url:"https://tmpfiles.org/12345/file.pdf"}} */
-      /* Convert to direct download URL by adding /dl/ */
-      var fileUrl = null;
-      if (resp && resp.data && resp.data.url) {
-        fileUrl = resp.data.url.replace("tmpfiles.org/", "tmpfiles.org/dl/");
-      }
-      if (!fileUrl) {
-        /* Fallback: try file.io */
-        return tryUpload("https://file.io").then(function(resp2) {
-          return resp2.link || resp2.url || null;
-        });
-      }
+  /* Upload to 0x0.st (supports CORS) to get a public URL for Airtable */
+  return fetch("https://0x0.st", { method: "POST", body: formData })
+    .then(function(r) {
+      if (!r.ok) throw new Error("0x0.st HTTP " + r.status);
+      return r.text();
+    })
+    .then(function(fileUrl) {
+      fileUrl = (fileUrl || "").trim();
+      if (!fileUrl || fileUrl.length < 10) throw new Error("URL invalide");
       return fileUrl;
     })
     .then(function(fileUrl) {
