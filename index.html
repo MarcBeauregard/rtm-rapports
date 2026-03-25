@@ -322,7 +322,7 @@ function startGeneration() {
 
     /* Step 2: fetch linked records */
     var entretienIds = ef["Entretien"] || [];
-    var modeleIds = ef["Modele"] || ef["Modèle"] || [];
+    var modeleIds = ef["Modele 2"] || ef["Modele"] || ef["Modèle"] || [];
     var etablissementIds = ef["Etablissement"] || ef["\u00c9tablissement"] || [];
 
     var promises = [];
@@ -369,7 +369,7 @@ function startGeneration() {
       : Promise.resolve(null);
 
     /* Fetch test de charge records linked to equipment */
-    var testIds = data.equip.fields["Test de charge"] || [];
+    var testIds = data.equip.fields["TEST DE CHARGE"] || data.equip.fields["Test de charge"] || [];
     var testPromises = testIds.map(function(id) {
       return airtableFetch(TABLES.testCharge, id);
     });
@@ -415,7 +415,7 @@ function startGeneration() {
     showInfo(
       '<span class="label">\u00c9tablissement :</span> <strong>' + (etf["Etab"] || etf["Nom"] || "—") + '</strong><br>' +
       '<span class="label">Mod\u00e8le :</span> <strong>' + (mf["Modele"] || mf["Modèle"] || "—") + '</strong> — ' + (mf["Marque"] || "") + '<br>' +
-      '<span class="label">No. s\u00e9rie :</span> <strong>' + (ef["No de serie"] || ef["No de série"] || "—") + '</strong><br>' +
+      '<span class="label">No. s\u00e9rie :</span> <strong>' + (ef["Numéro de série"] || ef["No de serie"] || ef["No de série"] || "—") + '</strong><br>' +
       '<span class="label">Entretiens :</span> <strong>' + data.entretiens.length + '</strong> visite(s)'
     );
 
@@ -491,13 +491,13 @@ function generatePDF(data) {
   var lef = data.lastEntretien.fields;
   var techName = data.technicien ? (data.technicien.fields["Name"] || data.technicien.fields["Nom"] || "—") : "—";
   var nVisites = data.entretiens.length;
-  var nompdf = ef["Name"] || ef["Nom"] || data.equip.id;
+  var nompdf = lef["nompdf"] || ef["Numéro de série"] || ef["Name"] || data.equip.id;
   var equipDate = getEntretienDate(data.lastEntretien);
   var dateStr = formatDate(equipDate);
   var conforme = (lef["Conformit\u00e9"] || lef["Conformité"] || lef["Conformite"] || "").toString().toUpperCase().indexOf("CONFORME") >= 0;
   var nonConforme = (lef["Conformit\u00e9"] || lef["Conformité"] || lef["Conformite"] || "").toString().toUpperCase().indexOf("NON") >= 0;
   if (nonConforme) conforme = false;
-  var raisonNC = lef["Raison non-conformit\u00e9"] || lef["Raison non-conformité"] || lef["Commentaire non-conformite"] || "";
+  var raisonNC = lef["Raison de la NON-CONFORMITÉ"] || lef["Raison non-conformit\u00e9"] || lef["Raison non-conformité"] || "";
   var typeFORM = lef["Type FORM"] || "";
 
   /* Color constants */
@@ -587,7 +587,7 @@ function generatePDF(data) {
 
   doc.setFontSize(6.5);
   doc.setTextColor(paleBlue[0], paleBlue[1], paleBlue[2]);
-  doc.text("Norme ISO-Z10535.2-17", pw - mr, 17);
+  doc.text("Norme ISO-Z10535.2-17", pw - mr, 17, { align: "right" });
 
   doc.setFontSize(6);
   doc.setTextColor(vPaleBlue[0], vPaleBlue[1], vPaleBlue[2]);
@@ -652,14 +652,14 @@ function generatePDF(data) {
   var leftLabels = ["\u00c9TABLISSEMENT", "LOCALISATION", "TYPE", "MOD\u00c8LE"];
   var leftValues = [
     etf["Etab"] || etf["Nom"] || "—",
-    ef["Localisation"] || "—",
-    mf["Type"] || "—",
+    lef["Localisation"] || lef["Localisation ent"] || ef["Localisation 2024"] || "—",
+    mf["Type"] || lef["type"] || "—",
     mf["Modele"] || mf["Mod\u00e8le"] || "—"
   ];
   var rightLabels = ["NO. GBM", "NO. DE S\u00c9RIE", "MARQUE", "DATE"];
   var rightValues = [
-    ef["No GBM"] || ef["GBM"] || "—",
-    ef["No de serie"] || ef["No de s\u00e9rie"] || "—",
+    ef["NUMERO GBM"] || ef["No GBM"] || ef["GBM"] || "—",
+    ef["Numéro de série"] || ef["No de serie"] || "—",
     mf["Marque"] || "—",
     dateStr
   ];
@@ -1050,7 +1050,8 @@ function uploadPDF(data) {
   .then(function(r) { return r.json(); })
   .then(function(resp) {
     if (!resp.success && !resp.link) {
-      throw new Error("file.io upload \u00e9chou\u00e9: " + JSON.stringify(resp));
+      console.warn("file.io upload skipped: " + JSON.stringify(resp));
+      return Promise.resolve();
     }
     var fileUrl = resp.link || resp.url;
 
@@ -1059,6 +1060,10 @@ function uploadPDF(data) {
     return airtablePatch(TABLES.entretien, lastEntId, {
       "PDF": [{ url: fileUrl }]
     });
+  })
+  .catch(function(err) {
+    console.warn("Sauvegarde Airtable non disponible: " + err.message);
+    return Promise.resolve();
   });
 }
 </script>
