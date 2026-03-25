@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RTM M&eacute;dical — Rapport d'inspection</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Roboto', sans-serif;
+    background: #0d1520;
+    color: #c8d6e5;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #app {
+    max-width: 520px;
+    width: 90%;
+    padding: 40px 32px;
+    background: #131d2e;
+    border-radius: 16px;
+    border: 1px solid #1e2d44;
+    box-shadow: 0 8px 32px rgba(0,0,0,.4);
+    text-align: center;
+  }
+  h1 { font-size: 22px; color: #fff; margin-bottom: 4px; }
+  .subtitle { font-size: 12px; color: #00b4e6; margin-bottom: 28px; }
+  .status-list { text-align: left; margin: 20px 0; }
+  .status-item {
+    padding: 10px 14px;
+    margin: 6px 0;
+    border-radius: 8px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #19273d;
+    transition: background .3s;
+  }
+  .status-item.active { background: #1a3050; color: #5cc8ff; }
+  .status-item.done { background: #132a1e; color: #34b450; }
+  .status-item.error { background: #2a1318; color: #e05050; }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #3a4a66; flex-shrink: 0;
+  }
+  .status-item.active .dot { background: #5cc8ff; box-shadow: 0 0 6px #5cc8ff; }
+  .status-item.done .dot { background: #34b450; }
+  .status-item.error .dot { background: #e05050; }
+  .info-box {
+    margin: 18px 0;
+    padding: 14px;
+    background: #19273d;
+    border-radius: 10px;
+    text-align: left;
+    font-size: 12px;
+    line-height: 1.7;
+    border: 1px solid #1e2d44;
+  }
+  .info-box strong { color: #fff; }
+  .info-box .label { color: #6b8ab5; }
+  #downloadArea { margin-top: 24px; }
+  #downloadArea a {
+    display: inline-block;
+    padding: 12px 28px;
+    background: #008cd2;
+    color: #fff;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 14px;
+    transition: background .2s;
+  }
+  #downloadArea a:hover { background: #00a0f0; }
+  #loginScreen {
+    text-align: center;
+  }
+  #loginScreen p {
+    font-size: 13px;
+    color: #8ba3c4;
+    margin-bottom: 16px;
+    line-height: 1.6;
+  }
+  #loginScreen input[type="password"] {
+    width: 100%;
+    padding: 12px 14px;
+    background: #19273d;
+    border: 1px solid #2a3d5c;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 13px;
+    font-family: 'Roboto', monospace;
+    margin-bottom: 12px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  #loginScreen input[type="password"]:focus { border-color: #008cd2; }
+  #loginScreen button {
+    padding: 12px 28px;
+    background: #008cd2;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    width: 100%;
+    transition: background .2s;
+  }
+  #loginScreen button:hover { background: #00a0f0; }
+  #loginScreen .hint {
+    font-size: 11px;
+    color: #4a6080;
+    margin-top: 12px;
+    line-height: 1.5;
+  }
+  .spinner {
+    display: inline-block;
+    width: 18px; height: 18px;
+    border: 2px solid #3a4a66;
+    border-top-color: #5cc8ff;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-msg {
+    margin: 20px 0;
+    padding: 16px;
+    background: #2a1318;
+    border-radius: 10px;
+    color: #e05050;
+    font-size: 13px;
+    text-align: left;
+    word-break: break-word;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>RTM M&eacute;dical</h1>
+  <div class="subtitle">G&eacute;n&eacute;rateur de rapport d'inspection</div>
+  <div id="loginScreen" style="display:none;">
+    <p>Entrez votre cl&eacute; API Airtable pour continuer.<br>Elle sera sauvegard&eacute;e dans votre navigateur.</p>
+    <input type="password" id="tokenInput" placeholder="Collez votre Personal Access Token ici..." />
+    <button onclick="saveTokenAndStart()">Connexion</button>
+    <div class="hint">Cr&eacute;ez un token sur <strong>airtable.com/create/tokens</strong> avec les acc&egrave;s data.records:read, data.records:write et schema.bases:read.</div>
+  </div>
+  <div id="statusList" class="status-list"></div>
+  <div id="infoBox"></div>
+  <div id="downloadArea"></div>
+</div>
+
+<script>
+/* ============================
+   CONFIGURATION
+   ============================ */
+var TOKEN = "";
+var BASE_ID = "appLdPUXB0AJq7QZw";
+var TABLES = {
+  equipement:    "tbl3fP7o5PaeE4YPu",
+  modele:        "tblq5BH3xErnsyByu",
+  etablissement: "tbl1jfGYzADK9euU8",
+  entretien:     "tbl2FQqQyeUHJs9Aa",
+  testCharge:    "tbl1dH7PLKbTzN3BH",
+  pieces:        "tblPkPKLCQhDXbCer",
+  techniciens:   "tblXaJqT1H0QXSfuo"
+};
+var API = "https://api.airtable.com/v0/" + BASE_ID + "/";
+
+function saveTokenAndStart() {
+  var val = document.getElementById("tokenInput").value.trim();
+  if (!val || val.length < 10) {
+    alert("Veuillez entrer un token valide.");
+    return;
+  }
+  try { localStorage.setItem("rtm_airtable_token", val); } catch(e) {}
+  TOKEN = val;
+  document.getElementById("loginScreen").style.display = "none";
+  startGeneration();
+}
+
+/* ============================
+   UI HELPERS
+   ============================ */
+var steps = [
+  "Chargement des donn\u00e9es depuis Airtable\u2026",
+  "R\u00e9cup\u00e9ration des entretiens et pi\u00e8ces\u2026",
+  "G\u00e9n\u00e9ration du PDF\u2026",
+  "Sauvegarde dans Airtable\u2026",
+  "Termin\u00e9 !"
+];
+
+function renderSteps(currentIdx, errorIdx) {
+  var html = "";
+  for (var i = 0; i < steps.length; i++) {
+    var cls = "status-item";
+    if (errorIdx !== undefined && i === errorIdx) cls += " error";
+    else if (i < currentIdx) cls += " done";
+    else if (i === currentIdx) cls += " active";
+    html += '<div class="' + cls + '"><span class="dot"></span>';
+    if (i === currentIdx && errorIdx === undefined) html += '<span class="spinner"></span>';
+    html += steps[i] + '</div>';
+  }
+  document.getElementById("statusList").innerHTML = html;
+}
+
+function showInfo(html) {
+  document.getElementById("infoBox").innerHTML = '<div class="info-box">' + html + '</div>';
+}
+
+function showError(msg) {
+  document.getElementById("downloadArea").innerHTML = '<div class="error-msg"><strong>Erreur :</strong> ' + msg + '</div>';
+}
+
+function showDownload(blob, filename) {
+  var url = URL.createObjectURL(blob);
+  document.getElementById("downloadArea").innerHTML =
+    '<a href="' + url + '" download="' + filename + '">T\u00e9l\u00e9charger le PDF</a>';
+}
+
+/* ============================
+   AIRTABLE FETCH HELPERS
+   ============================ */
+function airtableFetch(tableId, recordId) {
+  return fetch(API + tableId + "/" + recordId, {
+    headers: { "Authorization": "Bearer " + TOKEN }
+  }).then(function(r) {
+    if (!r.ok) throw new Error("Airtable " + r.status + " pour " + tableId + "/" + recordId);
+    return r.json();
+  });
+}
+
+function airtableList(tableId, params) {
+  var qs = params || "";
+  return fetch(API + tableId + "?" + qs, {
+    headers: { "Authorization": "Bearer " + TOKEN }
+  }).then(function(r) {
+    if (!r.ok) throw new Error("Airtable " + r.status + " liste " + tableId);
+    return r.json();
+  });
+}
+
+function airtablePatch(tableId, recordId, fields) {
+  return fetch(API + tableId + "/" + recordId, {
+    method: "PATCH",
+    headers: {
+      "Authorization": "Bearer " + TOKEN,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ fields: fields })
+  }).then(function(r) {
+    if (!r.ok) throw new Error("Airtable PATCH " + r.status);
+    return r.json();
+  });
+}
+
+/* ============================
+   DATE HELPER
+   ============================ */
+function formatDate(iso) {
+  if (!iso) return "—";
+  var d = new Date(iso);
+  var dd = ("0" + d.getDate()).slice(-2);
+  var mm = ("0" + (d.getMonth() + 1)).slice(-2);
+  return dd + "/" + mm + "/" + d.getFullYear();
+}
+
+function getEntretienDate(ent) {
+  var f = ent.fields;
+  return f["Date reelle"] || f["Date de cr\u00e9ation"] || f["Date de création"] || "";
+}
+
+/* ============================
+   FONT LOADING
+   ============================ */
+function loadFontAsBase64(url) {
+  return fetch(url)
+    .then(function(r) { return r.arrayBuffer(); })
+    .then(function(buf) {
+      var bytes = new Uint8Array(buf);
+      var binary = "";
+      for (var i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return btoa(binary);
+    });
+}
+
+/* ============================
+   MAIN
+   ============================ */
+function startGeneration() {
+  var params = new URLSearchParams(window.location.search);
+  var equipId = params.get("equipId");
+  if (!equipId) {
+    renderSteps(0, 0);
+    showError("Param\u00e8tre 'equipId' manquant dans l'URL.");
+    return;
+  }
+
+  var data = {};
+  renderSteps(0);
+
+  /* Step 1: fetch equipment + fonts */
+  Promise.all([
+    airtableFetch(TABLES.equipement, equipId),
+    loadFontAsBase64("https://fonts.gstatic.com/s/roboto/v47/KFOMCnqEu92Fr1ME7kSn66aGLdTylUAMQXC89YmC2DPNWubEbGmT.ttf"),
+    loadFontAsBase64("https://fonts.gstatic.com/s/roboto/v47/KFOMCnqEu92Fr1ME7kSn66aGLdTylUAMQXC89YmC2DPNWuaabWmT.ttf")
+  ]).then(function(results) {
+    data.equip = results[0];
+    data.fontRegular = results[1];
+    data.fontBold = results[2];
+    var ef = data.equip.fields;
+
+    renderSteps(1);
+
+    /* Step 2: fetch linked records */
+    var entretienIds = ef["Entretien"] || [];
+    var modeleIds = ef["Modele"] || ef["Modèle"] || [];
+    var etablissementIds = ef["Etablissement"] || ef["\u00c9tablissement"] || [];
+
+    var promises = [];
+
+    /* Entretiens */
+    var entretienPromises = entretienIds.map(function(id) {
+      return airtableFetch(TABLES.entretien, id);
+    });
+    promises.push(Promise.all(entretienPromises));
+
+    /* Modele */
+    if (modeleIds.length > 0) {
+      promises.push(airtableFetch(TABLES.modele, modeleIds[0]));
+    } else {
+      promises.push(Promise.resolve(null));
+    }
+
+    /* Etablissement */
+    if (etablissementIds.length > 0) {
+      promises.push(airtableFetch(TABLES.etablissement, etablissementIds[0]));
+    } else {
+      promises.push(Promise.resolve(null));
+    }
+
+    return Promise.all(promises);
+  }).then(function(results) {
+    var entretiens = results[0];
+    data.modele = results[1];
+    data.etablissement = results[2];
+
+    /* Sort entretiens chronologically by Name ascending */
+    entretiens.sort(function(a, b) {
+      var na = (a.fields["Name"] || a.fields["Nom"] || "").toString();
+      var nb = (b.fields["Name"] || b.fields["Nom"] || "").toString();
+      return na.localeCompare(nb);
+    });
+    data.entretiens = entretiens;
+    data.lastEntretien = entretiens[entretiens.length - 1];
+
+    /* Fetch technicien from last entretien */
+    var techIds = data.lastEntretien.fields["Technicien"] || data.lastEntretien.fields["Techniciens"] || [];
+    var techPromise = techIds.length > 0
+      ? airtableFetch(TABLES.techniciens, techIds[0])
+      : Promise.resolve(null);
+
+    /* Fetch test de charge records linked to equipment */
+    var testIds = data.equip.fields["Test de charge"] || [];
+    var testPromises = testIds.map(function(id) {
+      return airtableFetch(TABLES.testCharge, id);
+    });
+
+    /* Collect ALL piece IDs from ALL entretiens */
+    var allPieceIds = [];
+    entretiens.forEach(function(ent) {
+      var pids = ent.fields["PIECES"] || ent.fields["Pi\u00e8ces"] || ent.fields["Pièces"] || [];
+      pids.forEach(function(pid) {
+        if (allPieceIds.indexOf(pid) === -1) allPieceIds.push(pid);
+      });
+    });
+    var piecePromises = allPieceIds.map(function(id) {
+      return airtableFetch(TABLES.pieces, id);
+    });
+
+    return Promise.all([
+      techPromise,
+      Promise.all(testPromises),
+      Promise.all(piecePromises)
+    ]);
+  }).then(function(results) {
+    data.technicien = results[0];
+    var tests = results[1];
+    data.pieces = results[2];
+
+    /* Latest test de charge by date */
+    if (tests.length > 0) {
+      tests.sort(function(a, b) {
+        var da = a.fields["Date"] || "";
+        var db = b.fields["Date"] || "";
+        return da > db ? 1 : da < db ? -1 : 0;
+      });
+      data.testCharge = tests[tests.length - 1];
+    } else {
+      data.testCharge = null;
+    }
+
+    /* Show info */
+    var ef = data.equip.fields;
+    var mf = data.modele ? data.modele.fields : {};
+    var etf = data.etablissement ? data.etablissement.fields : {};
+    showInfo(
+      '<span class="label">\u00c9tablissement :</span> <strong>' + (etf["Etab"] || etf["Nom"] || "—") + '</strong><br>' +
+      '<span class="label">Mod\u00e8le :</span> <strong>' + (mf["Modele"] || mf["Modèle"] || "—") + '</strong> — ' + (mf["Marque"] || "") + '<br>' +
+      '<span class="label">No. s\u00e9rie :</span> <strong>' + (ef["No de serie"] || ef["No de série"] || "—") + '</strong><br>' +
+      '<span class="label">Entretiens :</span> <strong>' + data.entretiens.length + '</strong> visite(s)'
+    );
+
+    renderSteps(2);
+
+    /* Step 3: Generate PDF */
+    return generatePDF(data);
+  }).then(function(result) {
+    data.pdfBlob = result.blob;
+    data.pdfFilename = result.filename;
+    showDownload(data.pdfBlob, data.pdfFilename);
+
+    renderSteps(3);
+
+    /* Step 4: Upload to Airtable */
+    return uploadPDF(data);
+  }).then(function() {
+    renderSteps(4);
+  }).catch(function(err) {
+    console.error(err);
+    var currentStep = 0;
+    try {
+      var items = document.querySelectorAll(".status-item.active");
+      if (items.length > 0) {
+        var all = document.querySelectorAll(".status-item");
+        for (var i = 0; i < all.length; i++) {
+          if (all[i] === items[0]) { currentStep = i; break; }
+        }
+      }
+    } catch(e) {}
+    renderSteps(currentStep, currentStep);
+    showError(err.message || String(err));
+  });
+}
+
+/* Initialization: check localStorage for token, show login if needed */
+(function init() {
+  var savedToken = "";
+  try { savedToken = localStorage.getItem("rtm_airtable_token") || ""; } catch(e) {}
+
+  if (savedToken) {
+    TOKEN = savedToken;
+    document.getElementById("loginScreen").style.display = "none";
+    startGeneration();
+  } else {
+    document.getElementById("loginScreen").style.display = "block";
+  }
+})();
+
+/* ============================
+   PDF GENERATION
+   ============================ */
+function generatePDF(data) {
+  var jsPDF = window.jspdf.jsPDF;
+  var doc = new jsPDF({ unit: "mm", format: "letter" });
+
+  /* Register fonts */
+  doc.addFileToVFS("Roboto-Regular.ttf", data.fontRegular);
+  doc.addFont("Roboto-Regular.ttf", "Roboto", "normal");
+  doc.addFileToVFS("Roboto-Bold.ttf", data.fontBold);
+  doc.addFont("Roboto-Bold.ttf", "Roboto", "bold");
+
+  var pw = 215.9;
+  var ph = 279.4;
+  var ml = 14;
+  var mr = 14;
+  var cw = pw - ml - mr; /* content width */
+  var y = 0;
+
+  var ef = data.equip.fields;
+  var mf = data.modele ? data.modele.fields : {};
+  var etf = data.etablissement ? data.etablissement.fields : {};
+  var lef = data.lastEntretien.fields;
+  var techName = data.technicien ? (data.technicien.fields["Name"] || data.technicien.fields["Nom"] || "—") : "—";
+  var nVisites = data.entretiens.length;
+  var nompdf = ef["Name"] || ef["Nom"] || data.equip.id;
+  var equipDate = getEntretienDate(data.lastEntretien);
+  var dateStr = formatDate(equipDate);
+  var conforme = (lef["Conformit\u00e9"] || lef["Conformité"] || lef["Conformite"] || "").toString().toUpperCase().indexOf("CONFORME") >= 0;
+  var nonConforme = (lef["Conformit\u00e9"] || lef["Conformité"] || lef["Conformite"] || "").toString().toUpperCase().indexOf("NON") >= 0;
+  if (nonConforme) conforme = false;
+  var raisonNC = lef["Raison non-conformit\u00e9"] || lef["Raison non-conformité"] || lef["Commentaire non-conformite"] || "";
+  var typeFORM = lef["Type FORM"] || "";
+
+  /* Color constants */
+  var navy = [15, 30, 60];
+  var cyan = [0, 180, 230];
+  var cyanDark = [0, 140, 210];
+  var white = [255, 255, 255];
+  var nearBlack = [10, 15, 30];
+  var gray = [100, 110, 130];
+  var lightBlue = [150, 185, 230];
+  var paleBlue = [175, 205, 240];
+  var vPaleBlue = [210, 225, 245];
+
+  /* ---- Helper: section title bar ---- */
+  function sectionTitle(yPos, text) {
+    doc.setFillColor(navy[0], navy[1], navy[2]);
+    roundedRect(doc, ml, yPos, cw, 7, 1.5, 1.5, 0, 0, "F");
+    doc.setFont("Roboto", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(255, 255, 255);
+    doc.text(text, ml + 4, yPos + 4.8);
+    return yPos + 7;
+  }
+
+  /* ---- Helper: section end bar ---- */
+  function sectionEnd(yPos) {
+    doc.setFillColor(navy[0], navy[1], navy[2]);
+    roundedRect(doc, ml, yPos, cw, 1.2, 0, 0, 1.5, 1.5, "F");
+    return yPos + 1.2;
+  }
+
+  /* ---- Helper: conformity badge (inline) ---- */
+  function conformBadge(x, yPos, w, h, isConf, label) {
+    var bg = isConf ? [34, 180, 80] : [220, 60, 60];
+    var border = isConf ? [28, 150, 65] : [180, 40, 40];
+    doc.setFillColor(bg[0], bg[1], bg[2]);
+    doc.setDrawColor(border[0], border[1], border[2]);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(x, yPos, w, h, 1.5, 1.5, "FD");
+    doc.setFont("Roboto", "bold");
+    doc.setFontSize(6);
+    doc.setTextColor(255, 255, 255);
+    doc.text(label || (isConf ? "CONFORME" : "NON CONFORME"), x + w / 2, yPos + h / 2 + 1.8, { align: "center" });
+  }
+
+  /* ---- Helper: rounded rect with per-corner radii ---- */
+  function roundedRect(doc, x, y, w, h, rtl, rtr, rbr, rbl, style) {
+    /* Simplified: use max radius for all corners where > 0 */
+    var r = Math.max(rtl, rtr, rbr, rbl);
+    if (r <= 0) {
+      if (style === "F") doc.rect(x, y, w, h, "F");
+      else if (style === "FD") doc.rect(x, y, w, h, "FD");
+      else doc.rect(x, y, w, h, "S");
+      return;
+    }
+    doc.roundedRect(x, y, w, h, Math.min(r, w/2, h/2), Math.min(r, w/2, h/2), style || "F");
+  }
+
+  /* ============================
+     HEADER (30mm)
+     ============================ */
+  doc.setFillColor(navy[0], navy[1], navy[2]);
+  doc.rect(0, 0, pw, 30, "F");
+
+  /* RTM Médical */
+  doc.setFont("Roboto", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(255, 255, 255);
+  doc.text("RTM M\u00e9dical", ml, 12);
+
+  /* LOT info */
+  if (typeFORM) {
+    doc.setFontSize(8.5);
+    doc.setTextColor(cyan[0], cyan[1], cyan[2]);
+    doc.text(typeFORM, ml, 17.5);
+  }
+
+  /* Subtitle */
+  doc.setFontSize(6.5);
+  doc.setTextColor(lightBlue[0], lightBlue[1], lightBlue[2]);
+  doc.text("Entretien pr\u00e9ventif d'\u00e9quipements m\u00e9dicaux", ml, typeFORM ? 22 : 18);
+
+  /* Right side */
+  doc.setFontSize(11);
+  doc.setTextColor(255, 255, 255);
+  doc.text("RAPPORT D'INSPECTION", pw - mr, 12, { align: "right" });
+
+  doc.setFontSize(6.5);
+  doc.setTextColor(paleBlue[0], paleBlue[1], paleBlue[2]);
+  doc.text("Norme ISO-Z10535.2-17", pw - mr, 17);
+
+  doc.setFontSize(6);
+  doc.setTextColor(vPaleBlue[0], vPaleBlue[1], vPaleBlue[2]);
+  doc.text("#" + nompdf + "  |  " + dateStr + "  |  " + nVisites + " visite" + (nVisites > 1 ? "s" : ""), pw - mr, 22, { align: "right" });
+
+  /* Cyan accent bar */
+  doc.setFillColor(cyanDark[0], cyanDark[1], cyanDark[2]);
+  doc.rect(0, 29.2, pw, 0.8, "F");
+
+  y = 33;
+
+  /* ============================
+     CONFORMITY BADGE (8mm)
+     ============================ */
+  var badgeBg = conforme ? [230, 248, 235] : [254, 235, 235];
+  var badgeBorder = conforme ? [34, 180, 80] : [220, 60, 60];
+  var badgeText = conforme ? "APPAREIL JUG\u00c9 : CONFORME" : "APPAREIL JUG\u00c9 : NON CONFORME";
+
+  doc.setFillColor(badgeBg[0], badgeBg[1], badgeBg[2]);
+  doc.setDrawColor(badgeBorder[0], badgeBorder[1], badgeBorder[2]);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(ml, y, cw, 8, 2, 2, "FD");
+
+  /* Circle icon */
+  var circleX = ml + 6;
+  var circleY = y + 4;
+  doc.setFillColor(badgeBorder[0], badgeBorder[1], badgeBorder[2]);
+  doc.circle(circleX, circleY, 2.5, "F");
+  doc.setFont("Roboto", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(255, 255, 255);
+  doc.text(conforme ? "OK" : "X", circleX, circleY + 2, { align: "center" });
+
+  /* Badge text */
+  doc.setFontSize(8);
+  doc.setTextColor(badgeBorder[0], badgeBorder[1], badgeBorder[2]);
+  doc.text(badgeText, circleX + 6, y + 5.2);
+
+  y += 11;
+
+  /* ============================
+     EQUIPMENT TABLE (~35mm)
+     ============================ */
+  var tableH = 35;
+  doc.setFillColor(249, 250, 252);
+  doc.roundedRect(ml, y, cw, tableH, 2, 2, "F");
+
+  /* Title with cyan underline */
+  doc.setFont("Roboto", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(navy[0], navy[1], navy[2]);
+  doc.text("IDENTIFICATION DE L'\u00c9QUIPEMENT", ml + 4, y + 5);
+  doc.setDrawColor(cyanDark[0], cyanDark[1], cyanDark[2]);
+  doc.setLineWidth(0.5);
+  doc.line(ml + 4, y + 6.5, ml + 65, y + 6.5);
+
+  var rowH = 7;
+  var rowStartY = y + 9;
+  var halfW = cw / 2;
+  var labelW = 28;
+
+  var leftLabels = ["\u00c9TABLISSEMENT", "LOCALISATION", "TYPE", "MOD\u00c8LE"];
+  var leftValues = [
+    etf["Etab"] || etf["Nom"] || "—",
+    ef["Localisation"] || "—",
+    mf["Type"] || "—",
+    mf["Modele"] || mf["Mod\u00e8le"] || "—"
+  ];
+  var rightLabels = ["NO. GBM", "NO. DE S\u00c9RIE", "MARQUE", "DATE"];
+  var rightValues = [
+    ef["No GBM"] || ef["GBM"] || "—",
+    ef["No de serie"] || ef["No de s\u00e9rie"] || "—",
+    mf["Marque"] || "—",
+    dateStr
+  ];
+
+  for (var ri = 0; ri < 4; ri++) {
+    var ry = rowStartY + ri * rowH;
+
+    /* Alternating row bg */
+    if (ri % 2 === 1) {
+      doc.setFillColor(242, 244, 248);
+      doc.rect(ml + 1, ry, cw - 2, rowH, "F");
+    }
+
+    /* Left col */
+    doc.setFont("Roboto", "bold");
+    doc.setFontSize(5.5);
+    doc.setTextColor(gray[0], gray[1], gray[2]);
+    doc.text(leftLabels[ri], ml + 4, ry + 4.5);
+    doc.setFontSize(7.5);
+    doc.setTextColor(nearBlack[0], nearBlack[1], nearBlack[2]);
+    doc.text(leftValues[ri].toString().substring(0, 35), ml + 4 + labelW, ry + 4.5);
+
+    /* Vertical divider */
+    doc.setDrawColor(220, 225, 235);
+    doc.setLineWidth(0.2);
+    doc.line(ml + halfW, ry, ml + halfW, ry + rowH);
+
+    /* Right col */
+    doc.setFontSize(5.5);
+    doc.setTextColor(gray[0], gray[1], gray[2]);
+    doc.text(rightLabels[ri], ml + halfW + 4, ry + 4.5);
+    doc.setFontSize(7.5);
+    doc.setTextColor(nearBlack[0], nearBlack[1], nearBlack[2]);
+    doc.text(rightValues[ri].toString().substring(0, 35), ml + halfW + 4 + labelW, ry + 4.5);
+  }
+
+  y += tableH + 3;
+
+  /* ============================
+     INSPECTION POINTS (~22mm)
+     ============================ */
+  doc.setFont("Roboto", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(navy[0], navy[1], navy[2]);
+  doc.text("POINTS D'INSPECTION V\u00c9RIFI\u00c9S", ml + 4, y + 1);
+  doc.setDrawColor(cyanDark[0], cyanDark[1], cyanDark[2]);
+  doc.setLineWidth(0.5);
+  doc.line(ml + 4, y + 2.5, ml + 60, y + 2.5);
+  y += 5;
+
+  var inspItems = [
+    "\u00c9tat ext\u00e9rieur", "Ch\u00e2ssis / soudures", "Extension base",
+    "Alimentation / mise \u00e0 terre", "Cordons d'alimentation", "C\u00e2bles t\u00e9l\u00e9commande",
+    "\u00c9tiquetage / charge max.", "Commandes", "Moteurs / hydrauliques",
+    "Cintre / courroie levage", "Batteries / chargeurs", ""
+  ];
+  var cols = 3;
+  var rows = 4;
+  var colW = cw / cols;
+  var rowSp = 4.5;
+
+  for (var ir = 0; ir < rows; ir++) {
+    for (var ic = 0; ic < cols; ic++) {
+      var idx = ir * cols + ic;
+      if (idx >= inspItems.length || !inspItems[idx]) continue;
+      var ix = ml + ic * colW + 2;
+      var iy = y + ir * rowSp;
+      /* Blue dot */
+      doc.setFillColor(0, 110, 190);
+      doc.circle(ix + 1, iy + 1, 0.8, "F");
+      doc.setFont("Roboto", "bold");
+      doc.setFontSize(6);
+      doc.setTextColor(30, 40, 60);
+      doc.text(inspItems[idx], ix + 3.5, iy + 1.8);
+    }
+  }
+
+  y += rows * rowSp + 3;
+
+  /* ============================
+     WORK SUMMARY SECTION
+     ============================ */
+  var titleText = "TRAVAIL EFFECTU\u00c9 PAR LE TECHNICIEN";
+  if (nVisites > 1) titleText += " (" + nVisites + " VISITES)";
+  y = sectionTitle(y, titleText);
+
+  /* Collect comments from all entretiens */
+  var visitComments = [];
+  for (var vi = 0; vi < data.entretiens.length; vi++) {
+    var vent = data.entretiens[vi];
+    var vf = vent.fields;
+    var comment = vf["Commentaire"] || vf["Commentaires"] || "";
+    var vdate = getEntretienDate(vent);
+    visitComments.push({
+      num: vi + 1,
+      date: formatDate(vdate),
+      comment: comment,
+      isLast: vi === data.entretiens.length - 1
+    });
+  }
+
+  for (var ci = 0; ci < visitComments.length; ci++) {
+    var vc = visitComments[ci];
+    if (!vc.comment && visitComments.length > 1) continue;
+
+    var boxBg = vc.isLast ? [240, 245, 255] : [248, 250, 254];
+    var dateLabelColor = vc.isLast ? [0, 110, 190] : gray;
+
+    /* Date label */
+    doc.setFont("Roboto", "bold");
+    doc.setFontSize(5.5);
+    doc.setTextColor(dateLabelColor[0], dateLabelColor[1], dateLabelColor[2]);
+    var visitLabel = nVisites > 1 ? ("Visite " + vc.num + " \u2014 " + vc.date) : vc.date;
+
+    /* Comment text */
+    var commentText = vc.comment || "(Aucun commentaire)";
+    doc.setFontSize(7.5);
+    var splitComment = doc.splitTextToSize(commentText, cw - 12);
+    var boxH = Math.max(8, 4 + splitComment.length * 3.5 + 3);
+
+    /* Check page break */
+    if (y + boxH > ph - 25) {
+      addFooter(doc, pw, ph, ml, mr, cyanDark, navy, nompdf);
+      doc.addPage();
+      y = 10;
+    }
+
+    doc.setFillColor(boxBg[0], boxBg[1], boxBg[2]);
+    doc.rect(ml, y, cw, boxH, "F");
+    doc.setTextColor(dateLabelColor[0], dateLabelColor[1], dateLabelColor[2]);
+    doc.setFontSize(5.5);
+    doc.text(visitLabel, ml + 4, y + 4);
+    doc.setFontSize(7.5);
+    doc.setTextColor(nearBlack[0], nearBlack[1], nearBlack[2]);
+    doc.text(splitComment, ml + 4, y + 8);
+    y += boxH + 0.5;
+  }
+
+  y = sectionEnd(y) + 3;
+
+  /* ============================
+     PIECES TABLE
+     ============================ */
+  var hasPieces = data.pieces && data.pieces.length > 0;
+  var piecesTitle = nVisites > 1 ? "PI\u00c8CES REMPLAC\u00c9ES (TOUTES VISITES)" : "PI\u00c8CES REMPLAC\u00c9ES";
+  y = sectionTitle(y, piecesTitle);
+
+  var piecesBg = hasPieces ? [255, 251, 237] : [248, 250, 254];
+  var numW = 20;
+
+  if (hasPieces) {
+    /* Column headers */
+    doc.setFillColor(235, 240, 248);
+    doc.rect(ml, y, cw, 5, "F");
+    doc.setFont("Roboto", "bold");
+    doc.setFontSize(5.5);
+    doc.setTextColor(gray[0], gray[1], gray[2]);
+    doc.text("NO. PI\u00c8CE", ml + 3, y + 3.3);
+    doc.text("DESCRIPTION", ml + numW + 3, y + 3.3);
+    /* Vertical divider in header */
+    doc.setDrawColor(210, 218, 230);
+    doc.setLineWidth(0.15);
+    doc.line(ml + numW, y, ml + numW, y + 5);
+    y += 5;
+
+    for (var pi = 0; pi < data.pieces.length; pi++) {
+      var piece = data.pieces[pi].fields;
+      var pNum = piece["Num\u00e9ro"] || piece["Numéro"] || piece["Name"] || piece["Nom"] || "—";
+      var pDesc = piece["Description"] || "—";
+
+      doc.setFontSize(6.5);
+      var splitDesc = doc.splitTextToSize(pDesc, cw - numW - 8);
+      var pRowH = Math.max(5.5, splitDesc.length * 3.2 + 2);
+
+      /* Page break check */
+      if (y + pRowH > ph - 25) {
+        addFooter(doc, pw, ph, ml, mr, cyanDark, navy, nompdf);
+        doc.addPage();
+        y = 10;
+      }
+
+      /* Alternating bg */
+      var pBg = pi % 2 === 0 ? piecesBg : [252, 248, 230];
+      if (!hasPieces) pBg = pi % 2 === 0 ? [248, 250, 254] : [242, 245, 250];
+      doc.setFillColor(pBg[0], pBg[1], pBg[2]);
+      doc.rect(ml, y, cw, pRowH, "F");
+
+      /* Vertical divider */
+      doc.setDrawColor(210, 218, 230);
+      doc.setLineWidth(0.15);
+      doc.line(ml + numW, y, ml + numW, y + pRowH);
+
+      doc.setFont("Roboto", "bold");
+      doc.setFontSize(6.5);
+      doc.setTextColor(0, 90, 170);
+      doc.text(pNum.toString(), ml + 3, y + 3.5);
+
+      doc.setTextColor(nearBlack[0], nearBlack[1], nearBlack[2]);
+      doc.text(splitDesc, ml + numW + 3, y + 3.5);
+
+      y += pRowH;
+    }
+  } else {
+    doc.setFillColor(piecesBg[0], piecesBg[1], piecesBg[2]);
+    doc.rect(ml, y, cw, 7, "F");
+    doc.setFont("Roboto", "bold");
+    doc.setFontSize(6.5);
+    doc.setTextColor(gray[0], gray[1], gray[2]);
+    doc.text("Aucune pi\u00e8ce remplac\u00e9e", ml + 4, y + 4.5);
+    y += 7;
+  }
+
+  y = sectionEnd(y) + 3;
+
+  /* ============================
+     NON-CONFORMITÉ (conditional)
+     ============================ */
+  if (nonConforme && raisonNC) {
+    if (y + 18 > ph - 25) {
+      addFooter(doc, pw, ph, ml, mr, cyanDark, navy, nompdf);
+      doc.addPage();
+      y = 10;
+    }
+
+    doc.setFontSize(7.5);
+    var splitNC = doc.splitTextToSize(raisonNC, cw - 12);
+    var ncH = Math.max(14, 8 + splitNC.length * 3.5);
+
+    doc.setFillColor(254, 240, 240);
+    doc.setDrawColor(220, 60, 60);
+    doc.setLineWidth(0.4);
+    doc.roundedRect(ml, y, cw, ncH, 2, 2, "FD");
+
+    doc.setFont("Roboto", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(140, 20, 20);
+    doc.text("RAISON DE LA NON-CONFORMIT\u00c9", ml + 4, y + 5);
+
+    doc.setFontSize(7.5);
+    doc.setTextColor(nearBlack[0], nearBlack[1], nearBlack[2]);
+    doc.text(splitNC, ml + 4, y + 10);
+
+    y += ncH + 3;
+  }
+
+  /* ============================
+     TEST DE CHARGE (conditional)
+     ============================ */
+  if (data.testCharge) {
+    var tc = data.testCharge.fields;
+    var testH = 24;
+
+    if (y + testH + 10 > ph - 25) {
+      addFooter(doc, pw, ph, ml, mr, cyanDark, navy, nompdf);
+      doc.addPage();
+      y = 10;
+    }
+
+    y = sectionTitle(y, "TEST DE CHARGE");
+
+    var colHalf = (cw - 1) / 2;
+    var confRail = (tc["Conformit\u00e9 rail"] || tc["Conformité rail"] || "").toString().toUpperCase().indexOf("CONFORME") >= 0;
+    var ncRail = (tc["Conformit\u00e9 rail"] || tc["Conformité rail"] || "").toString().toUpperCase().indexOf("NON") >= 0;
+    if (ncRail) confRail = false;
+    var confLevier = (tc["Conformit\u00e9 levier"] || tc["Conformité levier"] || "").toString().toUpperCase().indexOf("CONFORME") >= 0;
+    var ncLevier = (tc["Conformit\u00e9 levier"] || tc["Conformité levier"] || "").toString().toUpperCase().indexOf("NON") >= 0;
+    if (ncLevier) confLevier = false;
+    var poidsRail = tc["Poids utilis\u00e9"] || tc["Poids utilisé"] || "—";
+    var poidsLevier = tc["Poids utilis\u00e9 levier"] || tc["Poids utilisé levier"] || "—";
+    var typeTest = tc["Type de test"] || "—";
+    var dateTest = formatDate(tc["Date"] || "");
+
+    /* Rail column */
+    doc.setFillColor(248, 250, 254);
+    doc.rect(ml, y, colHalf, 16, "F");
+    doc.setFont("Roboto", "bold");
+    doc.setFontSize(6);
+    doc.setTextColor(gray[0], gray[1], gray[2]);
+    doc.text("RAIL", ml + 4, y + 4);
+    conformBadge(ml + 14, y + 1.5, 22, 5, confRail, confRail ? "CONFORME" : "NON CONFORME");
+    doc.setFontSize(6.5);
+    doc.setTextColor(nearBlack[0], nearBlack[1], nearBlack[2]);
+    doc.text("Poids : " + poidsRail + " lbs", ml + 4, y + 10.5);
+    doc.setFontSize(5.5);
+    doc.setTextColor(gray[0], gray[1], gray[2]);
+    doc.text(dateTest + " \u2014 " + typeTest, ml + 4, y + 14);
+
+    /* Vertical divider */
+    doc.setDrawColor(210, 218, 230);
+    doc.setLineWidth(0.2);
+    doc.line(ml + colHalf, y, ml + colHalf, y + 16);
+
+    /* Levier column */
+    var lx = ml + colHalf + 1;
+    doc.setFillColor(248, 250, 254);
+    doc.rect(lx, y, colHalf, 16, "F");
+    doc.setFontSize(6);
+    doc.setTextColor(gray[0], gray[1], gray[2]);
+    doc.text("LEVIER", lx + 4, y + 4);
+    conformBadge(lx + 16, y + 1.5, 22, 5, confLevier, confLevier ? "CONFORME" : "NON CONFORME");
+    doc.setFontSize(6.5);
+    doc.setTextColor(nearBlack[0], nearBlack[1], nearBlack[2]);
+    doc.text("Poids : " + poidsLevier + " lbs", lx + 4, y + 10.5);
+    doc.setFontSize(5.5);
+    doc.setTextColor(gray[0], gray[1], gray[2]);
+    doc.text(dateTest + " \u2014 " + typeTest, lx + 4, y + 14);
+
+    y += 16;
+    y = sectionEnd(y) + 3;
+  }
+
+  /* ============================
+     OBSERVATION LINE
+     ============================ */
+  if (y + 12 > ph - 25) {
+    addFooter(doc, pw, ph, ml, mr, cyanDark, navy, nompdf);
+    doc.addPage();
+    y = 10;
+  }
+
+  doc.setFont("Roboto", "bold");
+  doc.setFontSize(6);
+  doc.setTextColor(gray[0], gray[1], gray[2]);
+  doc.text("Composants inspect\u00e9s valid\u00e9s conform\u00e9ment \u00e0 la norme ISO-Z10535.2-17.", ml, y + 2);
+  y += 6;
+
+  /* ============================
+     SIGNATURE
+     ============================ */
+  doc.setDrawColor(200, 210, 225);
+  doc.setLineWidth(0.3);
+  doc.line(ml, y, pw - mr, y);
+  y += 3;
+
+  doc.setFont("Roboto", "bold");
+  doc.setFontSize(5.5);
+  doc.setTextColor(gray[0], gray[1], gray[2]);
+  doc.text("SIGNATURE \u00c9LECTRONIQUE DU TECHNICIEN", ml, y + 1);
+  y += 5;
+
+  doc.setFontSize(8.5);
+  doc.setTextColor(nearBlack[0], nearBlack[1], nearBlack[2]);
+  doc.text(techName, ml, y + 1);
+  doc.setFontSize(7);
+  doc.setTextColor(gray[0], gray[1], gray[2]);
+  doc.text("DATE : " + dateStr, pw - mr, y + 1, { align: "right" });
+
+  /* ============================
+     FOOTER
+     ============================ */
+  addFooter(doc, pw, ph, ml, mr, cyanDark, navy, nompdf);
+
+  /* Output */
+  var pdfBlob = doc.output("blob");
+  var filename = "Rapport_" + nompdf.replace(/[^a-zA-Z0-9\-_]/g, "_") + ".pdf";
+  doc.save(filename);
+
+  return Promise.resolve({ blob: pdfBlob, filename: filename });
+}
+
+function addFooter(doc, pw, ph, ml, mr, cyanDark, navy, nompdf) {
+  /* Cyan accent bar */
+  doc.setFillColor(cyanDark[0], cyanDark[1], cyanDark[2]);
+  doc.rect(0, ph - 9.6, pw, 0.6, "F");
+
+  /* Dark navy bar */
+  doc.setFillColor(navy[0], navy[1], navy[2]);
+  doc.rect(0, ph - 8.4, pw, 8.4, "F");
+
+  doc.setFont("Roboto", "bold");
+  doc.setFontSize(6);
+  doc.setTextColor(180, 195, 220);
+  doc.text("RTM M\u00e9dical  |  " + nompdf, ml, ph - 3.5);
+  doc.text("Confidentiel", pw - mr, ph - 3.5, { align: "right" });
+}
+
+/* ============================
+   PDF UPLOAD TO AIRTABLE
+   ============================ */
+function uploadPDF(data) {
+  var formData = new FormData();
+  formData.append("file", data.pdfBlob, data.pdfFilename);
+
+  return fetch("https://file.io", {
+    method: "POST",
+    body: formData
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(resp) {
+    if (!resp.success && !resp.link) {
+      throw new Error("file.io upload \u00e9chou\u00e9: " + JSON.stringify(resp));
+    }
+    var fileUrl = resp.link || resp.url;
+
+    /* Patch the LAST entretien record's PDF field */
+    var lastEntId = data.lastEntretien.id;
+    return airtablePatch(TABLES.entretien, lastEntId, {
+      "PDF": [{ url: fileUrl }]
+    });
+  });
+}
+</script>
+</body>
+</html>
