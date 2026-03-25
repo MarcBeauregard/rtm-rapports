@@ -1012,10 +1012,9 @@ function generatePDF(data) {
      ============================ */
   addFooter(doc, pw, ph, ml, mr, cyanDark, navy, nompdf);
 
-  /* Output */
+  /* Output — no auto-download, user clicks button to download */
   var pdfBlob = doc.output("blob");
   var filename = "Rapport_" + nompdf.replace(/[^a-zA-Z0-9\-_]/g, "_") + ".pdf";
-  doc.save(filename);
 
   return Promise.resolve({ blob: pdfBlob, filename: filename });
 }
@@ -1043,28 +1042,44 @@ function uploadPDF(data) {
   var formData = new FormData();
   formData.append("file", data.pdfBlob, data.pdfFilename);
 
-  return fetch("https://file.io", {
-    method: "POST",
-    body: formData
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(resp) {
-    if (!resp.success && !resp.link) {
-      console.warn("file.io upload skipped: " + JSON.stringify(resp));
-      return Promise.resolve();
-    }
-    var fileUrl = resp.link || resp.url;
+  /* Try tmpfiles.org first, then file.io as fallback */
+  function tryUpload(url) {
+    return fetch(url, { method: "POST", body: formData })
+      .then(function(r) { return r.json(); });
+  }
 
-    /* Patch the Equipment record's "PDF claude" attachment field */
-    var equipId = data.equip.id;
-    return airtablePatch(TABLES.equipement, equipId, {
-      "PDF claude": [{ url: fileUrl }]
+  return tryUpload("https://tmpfiles.org/api/v1/upload")
+    .then(function(resp) {
+      /* tmpfiles.org returns {data:{url:"https://tmpfiles.org/12345/file.pdf"}} */
+      /* Convert to direct download URL by adding /dl/ */
+      var fileUrl = null;
+      if (resp && resp.data && resp.data.url) {
+        fileUrl = resp.data.url.replace("tmpfiles.org/", "tmpfiles.org/dl/");
+      }
+      if (!fileUrl) {
+        /* Fallback: try file.io */
+        return tryUpload("https://file.io").then(function(resp2) {
+          return resp2.link || resp2.url || null;
+        });
+      }
+      return fileUrl;
+    })
+    .then(function(fileUrl) {
+      if (!fileUrl) {
+        console.warn("Upload temporaire indisponible — PDF non sauvegardé dans Airtable");
+        return Promise.resolve();
+      }
+
+      /* Patch the Equipment record's "PDF claude" attachment field */
+      var equipId = data.equip.id;
+      return airtablePatch(TABLES.equipement, equipId, {
+        "PDF claude": [{ url: fileUrl }]
+      });
+    })
+    .catch(function(err) {
+      console.warn("Sauvegarde Airtable non disponible: " + err.message);
+      return Promise.resolve();
     });
-  })
-  .catch(function(err) {
-    console.warn("Sauvegarde Airtable non disponible: " + err.message);
-    return Promise.resolve();
-  });
 }
 </script>
 </body>
