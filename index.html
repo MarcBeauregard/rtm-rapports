@@ -1055,10 +1055,10 @@ function uploadPDF(data) {
     }
     var fileUrl = resp.link || resp.url;
 
-    /* Patch the LAST entretien record's PDF field */
-    var lastEntId = data.lastEntretien.id;
-    return airtablePatch(TABLES.entretien, lastEntId, {
-      "PDF": [{ url: fileUrl }]
+    /* Patch the Equipment record's "PDF claude" attachment field */
+    var equipId = data.equip.id;
+    return airtablePatch(TABLES.equipement, equipId, {
+      "PDF claude": [{ url: fileUrl }]
     });
   })
   .catch(function(err) {
