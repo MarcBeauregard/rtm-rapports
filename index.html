@@ -192,7 +192,6 @@ var steps = [
   "Chargement des donn\u00e9es depuis Airtable\u2026",
   "R\u00e9cup\u00e9ration des entretiens et pi\u00e8ces\u2026",
   "G\u00e9n\u00e9ration du PDF\u2026",
-  "Sauvegarde dans Airtable\u2026",
   "Termin\u00e9 !"
 ];
 
@@ -428,12 +427,8 @@ function startGeneration() {
     data.pdfFilename = result.filename;
     showDownload(data.pdfBlob, data.pdfFilename);
 
+    /* Done! */
     renderSteps(3);
-
-    /* Step 4: Upload to Airtable */
-    return uploadPDF(data);
-  }).then(function() {
-    renderSteps(4);
   }).catch(function(err) {
     console.error(err);
     var currentStep = 0;
