@@ -410,16 +410,36 @@ function startGeneration() {
       data.testCharge = null;
     }
 
+    /* For rails with no entretien: fetch technicien from TDC */
+    var techFromTDC = Promise.resolve(null);
+    if (!data.technicien && data.testCharge) {
+      var tdcTechIds = data.testCharge.fields["Techniciens"] || [];
+      if (tdcTechIds.length > 0) {
+        techFromTDC = airtableFetch(TABLES.techniciens, tdcTechIds[0]);
+      }
+    }
+    return techFromTDC;
+  }).then(function(tdcTech) {
+    if (tdcTech && !data.technicien) {
+      data.technicien = tdcTech;
+    }
+
     /* Show info */
     var ef = data.equip.fields;
     var mf = data.modele ? data.modele.fields : {};
     var etf = data.etablissement ? data.etablissement.fields : {};
-    showInfo(
-      '<span class="label">\u00c9tablissement :</span> <strong>' + (etf["Etab"] || etf["Nom"] || "—") + '</strong><br>' +
-      '<span class="label">Mod\u00e8le :</span> <strong>' + (mf["Modele"] || mf["Modèle"] || "—") + '</strong> — ' + (mf["Marque"] || "") + '<br>' +
-      '<span class="label">No. s\u00e9rie :</span> <strong>' + (ef["Numéro de série"] || ef["No de serie"] || ef["No de série"] || "—") + '</strong><br>' +
-      '<span class="label">Entretiens :</span> <strong>' + data.entretiens.length + '</strong> visite(s)'
-    );
+    var isRail = (ef["Numéro de série"] || "").toString().indexOf("RAIL-") === 0;
+    var infoHtml = '<span class="label">\u00c9tablissement :</span> <strong>' + (etf["Etab"] || etf["Nom"] || "—") + '</strong><br>';
+    if (isRail) {
+      infoHtml += '<span class="label">Type :</span> <strong>Rail</strong><br>';
+      infoHtml += '<span class="label">Localisation :</span> <strong>' + (ef["Localisation 2024"] || "—") + '</strong><br>';
+      infoHtml += '<span class="label">Tests de charge :</span> <strong>' + (ef["Test de charge 2"] || []).length + '</strong>';
+    } else {
+      infoHtml += '<span class="label">Mod\u00e8le :</span> <strong>' + (mf["Modele"] || mf["Modèle"] || "—") + '</strong> — ' + (mf["Marque"] || "") + '<br>';
+      infoHtml += '<span class="label">No. s\u00e9rie :</span> <strong>' + (ef["Numéro de série"] || "—") + '</strong><br>';
+      infoHtml += '<span class="label">Entretiens :</span> <strong>' + data.entretiens.length + '</strong> visite(s)';
+    }
+    showInfo(infoHtml);
 
     renderSteps(2);
 
@@ -487,17 +507,40 @@ function generatePDF(data) {
   var mf = data.modele ? data.modele.fields : {};
   var etf = data.etablissement ? data.etablissement.fields : {};
   var lef = data.lastEntretien ? data.lastEntretien.fields : {};
+  var isRailEquip = (ef["Numéro de série"] || "").toString().indexOf("RAIL-") === 0;
   var techName = data.technicien ? (data.technicien.fields["Name"] || data.technicien.fields["Nom"] || "—") : "—";
   var nVisites = data.entretiens.length;
   var nompdf = lef["nompdf"] || ef["Numéro de série"] || ef["Name"] || data.equip.id;
   var equipDate = getEntretienDate(data.lastEntretien) || (data.testCharge ? (data.testCharge.fields["Date"] || "") : "") || ef["Date de création"] || "";
   var dateStr = formatDate(equipDate);
-  var conforme = (lef["Conformit\u00e9"] || lef["Conformité"] || lef["Conformite"] || "").toString().toUpperCase().indexOf("CONFORME") >= 0;
-  var nonConforme = (lef["Conformit\u00e9"] || lef["Conformité"] || lef["Conformite"] || "").toString().toUpperCase().indexOf("NON") >= 0;
-  if (nonConforme) conforme = false;
-  var raisonNC = lef["Raison de la NON-CONFORMITÉ"] || lef["Raison non-conformit\u00e9"] || lef["Raison non-conformité"] || "";
-  var typeFORM = lef["Type FORM"] || "";
-  var isRailEquip = (ef["Numéro de série"] || "").toString().indexOf("RAIL-") === 0;
+  var conforme, nonConforme, raisonNC, typeFORM;
+
+  if (isRailEquip) {
+    /* For rails: conformity comes from TDC rail, not entretien */
+    var tcf = data.testCharge ? data.testCharge.fields : {};
+    var railConfStr = (tcf["Conformit\u00e9 rail"] || tcf["Conformité rail"] || "").toString().toUpperCase();
+    conforme = railConfStr.indexOf("CONFORME") >= 0;
+    nonConforme = railConfStr.indexOf("NON") >= 0;
+    if (nonConforme) conforme = false;
+    if (!railConfStr) { conforme = false; nonConforme = false; }
+    raisonNC = "";
+    typeFORM = "Rail";
+    /* Technicien from TDC if no entretien */
+    if (techName === "—" && data.testCharge) {
+      var tdcTechIds = tcf["Techniciens"] || [];
+      /* technicien already fetched from TDC in fetch flow, check data.technicien */
+    }
+    /* For rails, show number of TDC as "tests" instead of "visites" */
+    var testIds2 = ef["Test de charge 2"] || [];
+    nVisites = testIds2.length;
+  } else {
+    /* For leviers: conformity from entretien as before */
+    conforme = (lef["Conformit\u00e9"] || lef["Conformité"] || lef["Conformite"] || "").toString().toUpperCase().indexOf("CONFORME") >= 0;
+    nonConforme = (lef["Conformit\u00e9"] || lef["Conformité"] || lef["Conformite"] || "").toString().toUpperCase().indexOf("NON") >= 0;
+    if (nonConforme) conforme = false;
+    raisonNC = lef["Raison de la NON-CONFORMITÉ"] || lef["Raison non-conformit\u00e9"] || lef["Raison non-conformité"] || "";
+    typeFORM = lef["Type FORM"] || "";
+  }
 
   /* Color constants */
   var navy = [15, 30, 60];
@@ -590,7 +633,8 @@ function generatePDF(data) {
 
   doc.setFontSize(6);
   doc.setTextColor(vPaleBlue[0], vPaleBlue[1], vPaleBlue[2]);
-  doc.text("#" + nompdf + "  |  " + dateStr + "  |  " + nVisites + " visite" + (nVisites > 1 ? "s" : ""), pw - mr, 22, { align: "right" });
+  var visitLabel = isRailEquip ? (nVisites + " test" + (nVisites > 1 ? "s" : "") + " de charge") : (nVisites + " visite" + (nVisites > 1 ? "s" : ""));
+  doc.text("#" + nompdf + "  |  " + dateStr + "  |  " + visitLabel, pw - mr, 22, { align: "right" });
 
   /* Cyan accent bar */
   doc.setFillColor(cyanDark[0], cyanDark[1], cyanDark[2]);
@@ -651,15 +695,15 @@ function generatePDF(data) {
   var leftLabels = ["\u00c9TABLISSEMENT", "LOCALISATION", "TYPE", "MOD\u00c8LE"];
   var leftValues = [
     etf["Etab"] || etf["Nom"] || "—",
-    lef["Localisation"] || lef["Localisation ent"] || ef["Localisation 2024"] || "—",
-    mf["Type"] || lef["type"] || "—",
-    mf["Modele"] || mf["Mod\u00e8le"] || "—"
+    isRailEquip ? (ef["Localisation 2024"] || "—") : (lef["Localisation"] || lef["Localisation ent"] || ef["Localisation 2024"] || "—"),
+    isRailEquip ? "Rail" : (mf["Type"] || lef["type"] || "—"),
+    isRailEquip ? "—" : (mf["Modele"] || mf["Mod\u00e8le"] || "—")
   ];
   var rightLabels = ["NO. GBM", "NO. DE S\u00c9RIE", "MARQUE", "DATE"];
   var rightValues = [
-    ef["NUMERO GBM"] || ef["No GBM"] || ef["GBM"] || "—",
+    isRailEquip ? (ef["NUMERO GBM"] || "—") : (ef["NUMERO GBM"] || ef["No GBM"] || ef["GBM"] || "—"),
     ef["Numéro de série"] || ef["No de serie"] || "—",
-    mf["Marque"] || "—",
+    isRailEquip ? "—" : (mf["Marque"] || "—"),
     dateStr
   ];
 
@@ -698,8 +742,9 @@ function generatePDF(data) {
   y += tableH + 3;
 
   /* ============================
-     INSPECTION POINTS (~22mm)
+     INSPECTION POINTS (~22mm) — skip for rails
      ============================ */
+  if (!isRailEquip) {
   doc.setFont("Roboto", "bold");
   doc.setFontSize(7);
   doc.setTextColor(navy[0], navy[1], navy[2]);
@@ -737,6 +782,7 @@ function generatePDF(data) {
   }
 
   y += rows * rowSp + 3;
+  } /* end if (!isRailEquip) — skip inspection points for rails */
 
   /* ============================
      WORK SUMMARY SECTION (skip for rails with no entretiens)
