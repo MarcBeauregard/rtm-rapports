@@ -368,7 +368,9 @@ function startGeneration() {
       : Promise.resolve(null);
 
     /* Fetch test de charge records linked to equipment */
-    var testIds = data.equip.fields["TEST DE CHARGE"] || data.equip.fields["Test de charge"] || [];
+    /* For rails: field is "Test de charge 2" (reverse link from Rail field in TDC) */
+    /* For leviers: field is "TEST DE CHARGE" (original link) */
+    var testIds = data.equip.fields["TEST DE CHARGE"] || data.equip.fields["Test de charge"] || data.equip.fields["Test de charge 2"] || [];
     var testPromises = testIds.map(function(id) {
       return airtableFetch(TABLES.testCharge, id);
     });
@@ -494,6 +496,7 @@ function generatePDF(data) {
   if (nonConforme) conforme = false;
   var raisonNC = lef["Raison de la NON-CONFORMITÉ"] || lef["Raison non-conformit\u00e9"] || lef["Raison non-conformité"] || "";
   var typeFORM = lef["Type FORM"] || "";
+  var isRailEquip = (ef["Numéro de série"] || "").toString().indexOf("RAIL-") === 0;
 
   /* Color constants */
   var navy = [15, 30, 60];
@@ -913,9 +916,6 @@ function generatePDF(data) {
       y = 10;
     }
 
-    y = sectionTitle(y, "TEST DE CHARGE");
-
-    var colHalf = (cw - 1) / 2;
     var confRail = (tc["Conformit\u00e9 rail"] || tc["Conformité rail"] || "").toString().toUpperCase().indexOf("CONFORME") >= 0;
     var ncRail = (tc["Conformit\u00e9 rail"] || tc["Conformité rail"] || "").toString().toUpperCase().indexOf("NON") >= 0;
     if (ncRail) confRail = false;
@@ -927,40 +927,45 @@ function generatePDF(data) {
     var typeTest = tc["Type de test"] || "—";
     var dateTest = formatDate(tc["Date"] || "");
 
-    /* Rail column */
+    /* Show only relevant TDC based on equipment type */
+    if (isRailEquip) {
+      y = sectionTitle(y, "TEST DE CHARGE — RAIL");
+    } else {
+      y = sectionTitle(y, "TEST DE CHARGE — LEVIER");
+    }
+
+    /* Single column: show only the relevant equipment type */
     doc.setFillColor(248, 250, 254);
-    doc.rect(ml, y, colHalf, 16, "F");
+    doc.rect(ml, y, cw, 16, "F");
     doc.setFont("Roboto", "bold");
-    doc.setFontSize(6);
-    doc.setTextColor(gray[0], gray[1], gray[2]);
-    doc.text("RAIL", ml + 4, y + 4);
-    conformBadge(ml + 14, y + 1.5, 22, 5, confRail, confRail ? "CONFORME" : "NON CONFORME");
-    doc.setFontSize(6.5);
-    doc.setTextColor(nearBlack[0], nearBlack[1], nearBlack[2]);
-    doc.text("Poids : " + poidsRail + " lbs", ml + 4, y + 10.5);
-    doc.setFontSize(5.5);
-    doc.setTextColor(gray[0], gray[1], gray[2]);
-    doc.text(dateTest + " \u2014 " + typeTest, ml + 4, y + 14);
 
-    /* Vertical divider */
-    doc.setDrawColor(210, 218, 230);
-    doc.setLineWidth(0.2);
-    doc.line(ml + colHalf, y, ml + colHalf, y + 16);
-
-    /* Levier column */
-    var lx = ml + colHalf + 1;
-    doc.setFillColor(248, 250, 254);
-    doc.rect(lx, y, colHalf, 16, "F");
-    doc.setFontSize(6);
-    doc.setTextColor(gray[0], gray[1], gray[2]);
-    doc.text("LEVIER", lx + 4, y + 4);
-    conformBadge(lx + 16, y + 1.5, 22, 5, confLevier, confLevier ? "CONFORME" : "NON CONFORME");
-    doc.setFontSize(6.5);
-    doc.setTextColor(nearBlack[0], nearBlack[1], nearBlack[2]);
-    doc.text("Poids : " + poidsLevier + " lbs", lx + 4, y + 10.5);
-    doc.setFontSize(5.5);
-    doc.setTextColor(gray[0], gray[1], gray[2]);
-    doc.text(dateTest + " \u2014 " + typeTest, lx + 4, y + 14);
+    if (isRailEquip) {
+      /* Rail only */
+      doc.setFontSize(7);
+      doc.setTextColor(nearBlack[0], nearBlack[1], nearBlack[2]);
+      doc.text("RAIL", ml + 4, y + 5);
+      conformBadge(ml + 16, y + 2, 22, 5, confRail, confRail ? "CONFORME" : "NON CONFORME");
+      doc.setFontSize(7);
+      doc.setTextColor(nearBlack[0], nearBlack[1], nearBlack[2]);
+      doc.text("Poids : " + poidsRail + " lbs", ml + 45, y + 5);
+      doc.setFontSize(6.5);
+      doc.setTextColor(gray[0], gray[1], gray[2]);
+      doc.text("Date : " + dateTest, ml + 4, y + 11);
+      doc.text(typeTest, ml + 4, y + 14.5);
+    } else {
+      /* Levier only */
+      doc.setFontSize(7);
+      doc.setTextColor(nearBlack[0], nearBlack[1], nearBlack[2]);
+      doc.text("LEVIER", ml + 4, y + 5);
+      conformBadge(ml + 20, y + 2, 22, 5, confLevier, confLevier ? "CONFORME" : "NON CONFORME");
+      doc.setFontSize(7);
+      doc.setTextColor(nearBlack[0], nearBlack[1], nearBlack[2]);
+      doc.text("Poids : " + poidsLevier + " lbs", ml + 49, y + 5);
+      doc.setFontSize(6.5);
+      doc.setTextColor(gray[0], gray[1], gray[2]);
+      doc.text("Date : " + dateTest, ml + 4, y + 11);
+      doc.text(typeTest, ml + 4, y + 14.5);
+    }
 
     y += 16;
     y = sectionEnd(y) + 3;
