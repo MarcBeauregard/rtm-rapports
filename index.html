@@ -271,6 +271,7 @@ function formatDate(iso) {
 }
 
 function getEntretienDate(ent) {
+  if (!ent || !ent.fields) return "";
   var f = ent.fields;
   return f["Date reelle"] || f["Date de cr\u00e9ation"] || f["Date de création"] || "";
 }
@@ -359,10 +360,10 @@ function startGeneration() {
       return na.localeCompare(nb);
     });
     data.entretiens = entretiens;
-    data.lastEntretien = entretiens[entretiens.length - 1];
+    data.lastEntretien = entretiens.length > 0 ? entretiens[entretiens.length - 1] : null;
 
-    /* Fetch technicien from last entretien */
-    var techIds = data.lastEntretien.fields["Technicien"] || data.lastEntretien.fields["Techniciens"] || [];
+    /* Fetch technicien from last entretien (if exists) */
+    var techIds = data.lastEntretien ? (data.lastEntretien.fields["Technicien"] || data.lastEntretien.fields["Techniciens"] || []) : [];
     var techPromise = techIds.length > 0
       ? airtableFetch(TABLES.techniciens, techIds[0])
       : Promise.resolve(null);
@@ -485,11 +486,11 @@ function generatePDF(data) {
   var ef = data.equip.fields;
   var mf = data.modele ? data.modele.fields : {};
   var etf = data.etablissement ? data.etablissement.fields : {};
-  var lef = data.lastEntretien.fields;
+  var lef = data.lastEntretien ? data.lastEntretien.fields : {};
   var techName = data.technicien ? (data.technicien.fields["Name"] || data.technicien.fields["Nom"] || "—") : "—";
   var nVisites = data.entretiens.length;
   var nompdf = lef["nompdf"] || ef["Numéro de série"] || ef["Name"] || data.equip.id;
-  var equipDate = getEntretienDate(data.lastEntretien);
+  var equipDate = getEntretienDate(data.lastEntretien) || (data.testCharge ? (data.testCharge.fields["Date"] || "") : "") || ef["Date de création"] || "";
   var dateStr = formatDate(equipDate);
   var conforme = (lef["Conformit\u00e9"] || lef["Conformité"] || lef["Conformite"] || "").toString().toUpperCase().indexOf("CONFORME") >= 0;
   var nonConforme = (lef["Conformit\u00e9"] || lef["Conformité"] || lef["Conformite"] || "").toString().toUpperCase().indexOf("NON") >= 0;
@@ -738,8 +739,9 @@ function generatePDF(data) {
   y += rows * rowSp + 3;
 
   /* ============================
-     WORK SUMMARY SECTION
+     WORK SUMMARY SECTION (skip for rails with no entretiens)
      ============================ */
+  if (data.entretiens.length > 0) {
   var titleText = "TRAVAIL EFFECTU\u00c9 PAR LE TECHNICIEN";
   if (nVisites > 1) titleText += " (" + nVisites + " VISITES)";
   y = sectionTitle(y, titleText);
@@ -902,6 +904,7 @@ function generatePDF(data) {
 
     y += ncH + 3;
   }
+  } /* end if (data.entretiens.length > 0) — skip work/pieces/NC for rails */
 
   /* ============================
      TEST DE CHARGE (conditional)
