@@ -231,6 +231,7 @@ function airtableFetch(tableId, recordId) {
   return fetch(API + tableId + "/" + recordId, {
     headers: { "Authorization": "Bearer " + TOKEN }
   }).then(function(r) {
+    if (r.status === 404) { console.warn("Record introuvable: " + tableId + "/" + recordId); return null; }
     if (!r.ok) throw new Error("Airtable " + r.status + " pour " + tableId + "/" + recordId);
     return r.json();
   });
@@ -350,7 +351,7 @@ function startGeneration() {
 
     return Promise.all(promises);
   }).then(function(results) {
-    var entretiens = results[0];
+    var entretiens = results[0].filter(function(r) { return r !== null; });
     data.modele = results[1];
     data.etablissement = results[2];
 
@@ -396,8 +397,8 @@ function startGeneration() {
     ]);
   }).then(function(results) {
     data.technicien = results[0];
-    var tests = results[1];
-    data.pieces = results[2];
+    var tests = results[1].filter(function(r) { return r !== null; });
+    data.pieces = results[2].filter(function(r) { return r !== null; });
 
     /* Latest test de charge by date */
     if (tests.length > 0) {
