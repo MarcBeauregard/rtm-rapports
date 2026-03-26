@@ -457,6 +457,8 @@ function startGeneration() {
     return uploadPDF(data);
   }).then(function() {
     renderSteps(4);
+    /* Fermer la page automatiquement après 2 secondes */
+    setTimeout(function() { try { window.close(); } catch(e) {} }, 2000);
   }).catch(function(err) {
     console.error(err);
     var currentStep = 0;
