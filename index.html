@@ -192,6 +192,7 @@ var steps = [
   "Chargement des donn\u00e9es depuis Airtable\u2026",
   "R\u00e9cup\u00e9ration des entretiens et pi\u00e8ces\u2026",
   "G\u00e9n\u00e9ration du PDF\u2026",
+  "Sauvegarde dans Airtable\u2026",
   "Termin\u00e9 !"
 ];
 
@@ -450,8 +451,12 @@ function startGeneration() {
     data.pdfFilename = result.filename;
     showDownload(data.pdfBlob, data.pdfFilename);
 
-    /* Done! */
     renderSteps(3);
+
+    /* Step 4: Upload to Airtable via Cloudflare Worker */
+    return uploadPDF(data);
+  }).then(function() {
+    renderSteps(4);
   }).catch(function(err) {
     console.error(err);
     var currentStep = 0;
@@ -1091,33 +1096,26 @@ function uploadPDF(data) {
   var formData = new FormData();
   formData.append("file", data.pdfBlob, data.pdfFilename);
 
-  /* Upload to 0x0.st (supports CORS) to get a public URL for Airtable */
-  return fetch("https://0x0.st", { method: "POST", body: formData })
-    .then(function(r) {
-      if (!r.ok) throw new Error("0x0.st HTTP " + r.status);
-      return r.text();
-    })
-    .then(function(fileUrl) {
-      fileUrl = (fileUrl || "").trim();
-      if (!fileUrl || fileUrl.length < 10) throw new Error("URL invalide");
-      return fileUrl;
-    })
-    .then(function(fileUrl) {
-      if (!fileUrl) {
-        console.warn("Upload temporaire indisponible — PDF non sauvegardé dans Airtable");
-        return Promise.resolve();
-      }
-
-      /* Patch the Equipment record's "PDF claude" attachment field */
-      var equipId = data.equip.id;
-      return airtablePatch(TABLES.equipement, equipId, {
-        "PDF claude": [{ url: fileUrl }]
-      });
-    })
-    .catch(function(err) {
-      console.warn("Sauvegarde Airtable non disponible: " + err.message);
-      return Promise.resolve();
+  /* Upload to Cloudflare Worker to get a temporary public URL */
+  return fetch("https://rtm-pdf-upload.marc-beauregard.workers.dev/upload", {
+    method: "POST",
+    body: formData
+  })
+  .then(function(r) {
+    if (!r.ok) throw new Error("Worker HTTP " + r.status);
+    return r.json();
+  })
+  .then(function(resp) {
+    if (!resp.url) throw new Error("Pas d'URL retourn\u00e9e");
+    /* Patch the Equipment record's "PDF claude" attachment field */
+    return airtablePatch(TABLES.equipement, data.equip.id, {
+      "PDF claude": [{ url: resp.url }]
     });
+  })
+  .catch(function(err) {
+    console.warn("Sauvegarde Airtable: " + err.message);
+    return Promise.resolve();
+  });
 }
 </script>
 </body>
