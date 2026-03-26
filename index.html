@@ -1107,9 +1107,9 @@ function uploadPDF(data) {
   })
   .then(function(resp) {
     if (!resp.url) throw new Error("Pas d'URL retourn\u00e9e");
-    /* Patch the Equipment record's "PDF claude" attachment field */
+    /* Patch the Equipment record's "PDF CLAUDE" attachment field */
     return airtablePatch(TABLES.equipement, data.equip.id, {
-      "PDF claude": [{ url: resp.url }]
+      "PDF CLAUDE": [{ url: resp.url }]
     });
   })
   .catch(function(err) {
