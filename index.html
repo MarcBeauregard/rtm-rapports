@@ -1016,11 +1016,12 @@ function generatePDF(data) {
       doc.text("LEVIER", ml + 4, y + 5);
       conformBadge(ml + 20, y + 2, 22, 5, confLevier, confLevier ? "CONFORME" : "NON CONFORME");
       doc.setFontSize(7);
+      doc.setFont("Roboto", "bold");
       doc.setTextColor(nearBlack[0], nearBlack[1], nearBlack[2]);
-      doc.text("Poids : " + poidsLevier + " lbs", ml + 49, y + 5);
+      doc.text("Poids utilisé : " + poidsLevier + " lbs", ml + 4, y + 11);
       doc.setFontSize(6.5);
       doc.setTextColor(gray[0], gray[1], gray[2]);
-      doc.text("Date : " + dateTest, ml + 4, y + 11);
+      doc.text("Date : " + dateTest, ml + 50, y + 11);
       doc.text(typeTest, ml + 4, y + 14.5);
     }
 
