@@ -1,0 +1,1750 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>RTM Medical — Formulaire Terrain</title>
+<style>
+/* ===== RESET & BASE ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0d1520;
+  --card: #131d2e;
+  --card-hover: #192840;
+  --cyan: #00b4e6;
+  --cyan-dark: #0090b8;
+  --cyan-glow: rgba(0, 180, 230, 0.25);
+  --green: #00c853;
+  --green-bg: rgba(0, 200, 83, 0.15);
+  --red: #ff1744;
+  --red-bg: rgba(255, 23, 68, 0.15);
+  --text: #e8edf3;
+  --text-dim: #8899aa;
+  --text-muted: #556677;
+  --border: #1e2d42;
+  --border-focus: #00b4e6;
+  --danger: #ff1744;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 4px 20px rgba(0,0,0,0.3);
+  --transition: 0.25s ease;
+}
+html { font-size: 16px; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+input, select, textarea, button {
+  font-family: inherit;
+  font-size: 16px;
+  border: none;
+  outline: none;
+  background: none;
+  color: var(--text);
+}
+button { cursor: pointer; -webkit-user-select: none; user-select: none; }
+a { color: var(--cyan); text-decoration: none; }
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* ===== LAYOUT ===== */
+.app { max-width: 480px; margin: 0 auto; padding: 0 16px; padding-bottom: 100px; }
+.header {
+  position: sticky; top: 0; z-index: 100;
+  background: linear-gradient(180deg, var(--bg) 80%, transparent);
+  padding: 16px 0 12px;
+  text-align: center;
+}
+.header h1 { font-size: 1.1rem; font-weight: 700; color: var(--cyan); letter-spacing: 0.5px; }
+.header .subtitle { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+
+/* ===== LOGIN SCREEN ===== */
+#loginScreen { padding-top: 20vh; }
+#loginScreen .login-logo {
+  width: 80px; height: 80px; margin: 0 auto 24px;
+  background: var(--card); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem; border: 2px solid var(--border);
+}
+#loginScreen h2 { text-align: center; font-size: 1.3rem; margin-bottom: 8px; }
+#loginScreen .login-sub { text-align: center; color: var(--text-dim); font-size: 0.85rem; margin-bottom: 32px; }
+.login-field { margin-bottom: 20px; }
+.login-field label { display: block; font-size: 0.8rem; color: var(--text-dim); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.login-field input, .login-field select {
+  width: 100%; padding: 14px 16px;
+  background: var(--card); border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm); font-size: 16px; color: var(--text);
+  transition: border-color var(--transition);
+}
+.login-field input:focus, .login-field select:focus { border-color: var(--cyan); }
+.login-field select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='%238899aa'%3E%3Cpath d='M6 8L0 0h12z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 16px center; padding-right: 40px; }
+.login-error { color: var(--red); font-size: 0.8rem; margin-top: 6px; display: none; }
+
+/* ===== BUTTONS ===== */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 14px 24px; border-radius: var(--radius-sm);
+  font-size: 1rem; font-weight: 600;
+  transition: all var(--transition);
+  min-height: 48px; width: 100%;
+}
+.btn-primary { background: var(--cyan); color: #000; }
+.btn-primary:active { background: var(--cyan-dark); transform: scale(0.98); }
+.btn-primary:disabled { background: var(--text-muted); color: var(--bg); opacity: 0.6; }
+.btn-secondary { background: var(--card); color: var(--text); border: 1.5px solid var(--border); }
+.btn-secondary:active { background: var(--card-hover); }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-small { padding: 10px 16px; font-size: 0.85rem; min-height: 40px; width: auto; }
+
+/* ===== TAB SELECTOR ===== */
+.tabs {
+  display: flex; gap: 4px; background: var(--card);
+  border-radius: var(--radius); padding: 4px;
+  margin-bottom: 20px; border: 1px solid var(--border);
+}
+.tab {
+  flex: 1; padding: 12px 8px; text-align: center;
+  border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600;
+  color: var(--text-dim); transition: all var(--transition);
+}
+.tab.active { background: var(--cyan); color: #000; }
+.tab:not(.active):active { background: var(--card-hover); }
+
+/* ===== PROGRESS DOTS ===== */
+.progress-bar {
+  display: flex; align-items: center; justify-content: center;
+  gap: 8px; padding: 12px 0; margin-bottom: 16px;
+}
+.progress-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--border); transition: all var(--transition);
+}
+.progress-dot.active { background: var(--cyan); box-shadow: 0 0 8px var(--cyan-glow); transform: scale(1.2); }
+.progress-dot.done { background: var(--green); }
+.progress-line {
+  width: 20px; height: 2px; background: var(--border);
+  transition: background var(--transition);
+}
+.progress-line.done { background: var(--green); }
+
+/* ===== STEP CONTAINER ===== */
+.steps-wrapper { position: relative; overflow: hidden; }
+.step {
+  display: none; animation: slideIn 0.3s ease forwards;
+}
+.step.active { display: block; }
+.step-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
+.step-desc { font-size: 0.8rem; color: var(--text-dim); margin-bottom: 20px; }
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideOut {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(-30px); }
+}
+
+/* ===== FORM ELEMENTS ===== */
+.form-group { margin-bottom: 16px; }
+.form-label {
+  display: block; font-size: 0.75rem; font-weight: 600;
+  color: var(--text-dim); text-transform: uppercase;
+  letter-spacing: 0.5px; margin-bottom: 6px;
+}
+.form-input {
+  width: 100%; padding: 14px 16px;
+  background: var(--card); border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm); font-size: 16px;
+  transition: border-color var(--transition);
+}
+.form-input:focus { border-color: var(--cyan); }
+.form-input::placeholder { color: var(--text-muted); }
+textarea.form-input { resize: vertical; min-height: 100px; }
+
+/* ===== SEARCH LIST ===== */
+.search-container { position: relative; }
+.search-input {
+  width: 100%; padding: 14px 16px 14px 44px;
+  background: var(--card); border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm); font-size: 16px;
+  transition: border-color var(--transition);
+}
+.search-input:focus { border-color: var(--cyan); }
+.search-icon {
+  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  color: var(--text-muted); pointer-events: none;
+}
+.search-results {
+  margin-top: 8px; max-height: 300px; overflow-y: auto;
+  border-radius: var(--radius-sm);
+}
+.search-item {
+  padding: 14px 16px; background: var(--card);
+  border: 1px solid var(--border); margin-bottom: -1px;
+  cursor: pointer; transition: all var(--transition);
+  font-size: 0.95rem;
+}
+.search-item:first-child { border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+.search-item:last-child { border-radius: 0 0 var(--radius-sm) var(--radius-sm); margin-bottom: 0; }
+.search-item:only-child { border-radius: var(--radius-sm); }
+.search-item:active, .search-item.selected { background: var(--cyan); color: #000; border-color: var(--cyan); }
+.search-item .match { color: var(--cyan); font-weight: 700; }
+.search-item:active .match, .search-item.selected .match { color: #000; }
+
+/* ===== CONFORMITY BUTTONS ===== */
+.conformity-btns { display: flex; gap: 12px; }
+.conf-btn {
+  flex: 1; padding: 24px 16px; border-radius: var(--radius);
+  text-align: center; font-size: 1rem; font-weight: 700;
+  border: 2px solid transparent; transition: all var(--transition);
+  min-height: 80px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 8px;
+}
+.conf-btn .icon { font-size: 1.8rem; }
+.conf-btn-green { background: var(--green-bg); color: var(--green); border-color: rgba(0,200,83,0.3); }
+.conf-btn-green.selected { background: var(--green); color: #fff; border-color: var(--green); box-shadow: 0 0 20px rgba(0,200,83,0.4); }
+.conf-btn-red { background: var(--red-bg); color: var(--red); border-color: rgba(255,23,68,0.3); }
+.conf-btn-red.selected { background: var(--red); color: #fff; border-color: var(--red); box-shadow: 0 0 20px rgba(255,23,68,0.4); }
+
+/* ===== CHIPS ===== */
+.chips-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 12px; background: var(--cyan); color: #000;
+  border-radius: 20px; font-size: 0.8rem; font-weight: 600;
+}
+.chip-remove {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: rgba(0,0,0,0.2); display: flex;
+  align-items: center; justify-content: center;
+  font-size: 0.7rem; cursor: pointer;
+}
+
+/* ===== PHOTO INPUT ===== */
+.photo-zone {
+  border: 2px dashed var(--border); border-radius: var(--radius);
+  padding: 32px 16px; text-align: center; cursor: pointer;
+  transition: all var(--transition);
+}
+.photo-zone:active { border-color: var(--cyan); background: var(--cyan-glow); }
+.photo-zone .icon { font-size: 2rem; margin-bottom: 8px; }
+.photo-zone p { color: var(--text-dim); font-size: 0.85rem; }
+.photo-preview {
+  position: relative; border-radius: var(--radius); overflow: hidden;
+  margin-top: 12px;
+}
+.photo-preview img { width: 100%; border-radius: var(--radius); }
+.photo-preview .remove-photo {
+  position: absolute; top: 8px; right: 8px;
+  width: 32px; height: 32px; border-radius: 50%;
+  background: rgba(0,0,0,0.7); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; cursor: pointer;
+}
+
+/* ===== SUMMARY ===== */
+.summary-card {
+  background: var(--card); border-radius: var(--radius);
+  border: 1px solid var(--border); overflow: hidden;
+  margin-bottom: 12px;
+}
+.summary-row {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  gap: 12px;
+}
+.summary-row:last-child { border-bottom: none; }
+.summary-label { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; min-width: 100px; padding-top: 2px; }
+.summary-value { font-size: 0.9rem; text-align: right; word-break: break-word; }
+.summary-value.conforme { color: var(--green); font-weight: 700; }
+.summary-value.non-conforme { color: var(--red); font-weight: 700; }
+
+/* ===== NAVIGATION ===== */
+.nav-buttons {
+  display: flex; gap: 12px; margin-top: 24px;
+  position: fixed; bottom: 0; left: 0; right: 0;
+  padding: 12px 16px; background: linear-gradient(0deg, var(--bg) 70%, transparent);
+  z-index: 50;
+}
+.nav-buttons .btn { flex: 1; }
+
+/* ===== SPINNER ===== */
+.spinner {
+  display: inline-block; width: 20px; height: 20px;
+  border: 2.5px solid transparent; border-top-color: currentColor;
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(13,21,32,0.85);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 16px;
+}
+.loading-overlay .spinner { width: 40px; height: 40px; border-width: 3px; color: var(--cyan); }
+.loading-overlay p { color: var(--text-dim); font-size: 0.9rem; }
+
+/* ===== TOAST ===== */
+.toast {
+  position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+  padding: 12px 24px; border-radius: var(--radius-sm);
+  font-size: 0.85rem; font-weight: 600; z-index: 300;
+  animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards;
+  max-width: 90%; text-align: center;
+}
+.toast-success { background: var(--green); color: #fff; }
+.toast-error { background: var(--red); color: #fff; }
+@keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+@keyframes toastOut { to { opacity: 0; transform: translateX(-50%) translateY(20px); } }
+
+/* ===== OCR MODAL ===== */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 250;
+  background: rgba(13,21,32,0.9);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.modal {
+  background: var(--card); border-radius: var(--radius);
+  border: 1px solid var(--border); padding: 24px;
+  width: 100%; max-width: 400px;
+}
+.modal h3 { font-size: 1rem; margin-bottom: 16px; }
+.modal .form-input { margin-bottom: 16px; }
+.modal-actions { display: flex; gap: 8px; }
+.modal-actions .btn { flex: 1; }
+
+/* ===== HIDDEN ===== */
+.hidden { display: none !important; }
+
+/* ===== OCR INPUT ROW ===== */
+.input-with-btn { display: flex; gap: 8px; }
+.input-with-btn .form-input { flex: 1; }
+.input-with-btn .btn-icon {
+  width: 52px; min-width: 52px; height: 52px;
+  background: var(--card); border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm); display: flex;
+  align-items: center; justify-content: center;
+  font-size: 1.3rem; transition: all var(--transition);
+}
+.input-with-btn .btn-icon:active { border-color: var(--cyan); background: var(--cyan-glow); }
+
+/* ===== LOGOUT ===== */
+.logout-btn {
+  position: absolute; top: 16px; right: 0;
+  background: none; color: var(--text-muted);
+  font-size: 0.75rem; padding: 6px 10px; border-radius: var(--radius-sm);
+}
+.logout-btn:active { color: var(--red); }
+
+/* ===== ADD NEW BUTTON ===== */
+.add-new-btn {
+  padding: 12px 16px; background: var(--card);
+  border: 1px dashed var(--border); border-radius: var(--radius-sm);
+  color: var(--cyan); font-size: 0.9rem; cursor: pointer;
+  text-align: center; margin-top: 8px;
+  transition: all var(--transition);
+}
+.add-new-btn:active { background: var(--cyan-glow); }
+
+/* ===== SECTION LABEL ===== */
+.section-label {
+  font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;
+  letter-spacing: 1px; margin-bottom: 12px; padding-left: 4px;
+}
+
+/* ===== NUMBER INPUT ===== */
+.number-group { display: flex; align-items: center; gap: 12px; }
+.number-group .form-input { text-align: center; font-size: 1.2rem; font-weight: 700; }
+.number-group .unit { color: var(--text-dim); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- HEADER -->
+  <div class="header" id="mainHeader" style="display:none;">
+    <h1>RTM Medical</h1>
+    <div class="subtitle" id="headerTech"></div>
+    <button class="logout-btn" onclick="doLogout()">Déconnexion</button>
+  </div>
+
+  <!-- LOGIN SCREEN -->
+  <div id="loginScreen">
+    <div class="login-logo">🏥</div>
+    <h2>RTM Medical</h2>
+    <p class="login-sub">Formulaire terrain — Connexion</p>
+    <div class="login-field">
+      <label>Jeton Airtable (API Token)</label>
+      <input type="password" id="loginToken" placeholder="patXXXXXXXXXXXXXX" autocomplete="off">
+      <div class="login-error" id="tokenError">Jeton invalide ou connexion échouée</div>
+    </div>
+    <div class="login-field">
+      <label>Technicien</label>
+      <select id="loginTech" disabled>
+        <option value="">— Chargement... —</option>
+      </select>
+      <div class="login-error" id="techError">Veuillez sélectionner un technicien</div>
+    </div>
+    <button class="btn btn-primary" id="loginBtn" onclick="doLogin()" disabled>
+      Connexion
+    </button>
+  </div>
+
+  <!-- MAIN FORM AREA -->
+  <div id="mainArea" style="display:none;">
+    <!-- TAB SELECTOR -->
+    <div class="tabs">
+      <div class="tab active" id="tabEntretien" onclick="switchMode('entretien')">Entretien</div>
+      <div class="tab" id="tabTestCharge" onclick="switchMode('testcharge')">Test de charge</div>
+    </div>
+
+    <!-- PROGRESS -->
+    <div class="progress-bar" id="progressBar"></div>
+
+    <!-- STEPS CONTAINER -->
+    <div class="steps-wrapper" id="stepsContainer"></div>
+
+    <!-- NAVIGATION -->
+    <div class="nav-buttons" id="navButtons">
+      <button class="btn btn-secondary" id="btnPrev" onclick="prevStep()">← Retour</button>
+      <button class="btn btn-primary" id="btnNext" onclick="nextStep()">Suivant →</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay hidden" id="loadingOverlay">
+  <div class="spinner"></div>
+  <p id="loadingText">Chargement...</p>
+</div>
+
+<!-- OCR MODAL -->
+<div class="modal-overlay hidden" id="ocrModal">
+  <div class="modal">
+    <h3>Texte détecté (OCR)</h3>
+    <input type="text" class="form-input" id="ocrResult" placeholder="Numéro de série détecté">
+    <div class="modal-actions">
+      <button class="btn btn-secondary btn-small" onclick="closeOcrModal(false)">Annuler</button>
+      <button class="btn btn-primary btn-small" onclick="closeOcrModal(true)">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<!-- HIDDEN FILE INPUTS -->
+<input type="file" accept="image/*" capture="environment" id="ocrFileInput" class="hidden">
+<input type="file" accept="image/*" capture="environment" id="photoFileInput" class="hidden">
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script>
+/* ========================================================
+   RTM Medical — Formulaire Terrain
+   ======================================================== */
+
+/* ===== CONFIG ===== */
+var BASE_ID = "appLdPUXB0AJq7QZw";
+var API_BASE = "https://api.airtable.com/v0/" + BASE_ID + "/";
+var TABLES = {
+  equipement:   "tbl3fP7o5PaeE4YPu",
+  modele:       "tblq5BH3xErnsyByu",
+  etablissement:"tbl1jfGYzADK9euU8",
+  entretien:    "tbl2FQqQyeUHJs9Aa",
+  testCharge:   "tbl1dH7PLKbTzN3BH",
+  pieces:       "tblPkPKLCQhDXbCer",
+  techniciens:  "tblXaJqT1H0QXSfuo",
+  localisation: "tblDDsC3nne1jajL4"
+};
+var CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
+
+/* ===== STATE ===== */
+var state = {
+  token: "",
+  techId: "",
+  techName: "",
+  mode: "entretien",    // "entretien" | "testcharge"
+  currentStep: 0,
+  formData: {},
+  cache: {}
+};
+
+/* ===== AIRTABLE API HELPERS ===== */
+function getToken() {
+  return localStorage.getItem("rtm_airtable_token") || state.token;
+}
+
+function airtableFetch(tableName, params) {
+  var url = API_BASE + encodeURIComponent(tableName);
+  if (params) url += "?" + params;
+  return fetch(url, {
+    headers: { "Authorization": "Bearer " + getToken() }
+  }).then(function(r) {
+    if (!r.ok) throw new Error("Erreur API: " + r.status);
+    return r.json();
+  });
+}
+
+function airtableFetchAll(tableName, params) {
+  var allRecords = [];
+  var baseUrl = API_BASE + encodeURIComponent(tableName);
+  function fetchPage(offset) {
+    var url = baseUrl;
+    var sep = "?";
+    if (params) { url += "?" + params; sep = "&"; }
+    if (offset) url += sep + "offset=" + encodeURIComponent(offset);
+    return fetch(url, {
+      headers: { "Authorization": "Bearer " + getToken() }
+    }).then(function(r) {
+      if (!r.ok) throw new Error("Erreur API: " + r.status);
+      return r.json();
+    }).then(function(data) {
+      allRecords = allRecords.concat(data.records || []);
+      if (data.offset) return fetchPage(data.offset);
+      return allRecords;
+    });
+  }
+  return fetchPage(null);
+}
+
+function airtableCreate(tableName, fields) {
+  return fetch(API_BASE + encodeURIComponent(tableName), {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer " + getToken(),
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ fields: fields })
+  }).then(function(r) {
+    if (!r.ok) return r.json().then(function(e) { throw new Error(JSON.stringify(e)); });
+    return r.json();
+  });
+}
+
+/* ===== CACHING ===== */
+function getCached(key) {
+  try {
+    var raw = localStorage.getItem("rtm_cache_" + key);
+    if (!raw) return null;
+    var obj = JSON.parse(raw);
+    if (Date.now() - obj.ts > CACHE_TTL) { localStorage.removeItem("rtm_cache_" + key); return null; }
+    return obj.data;
+  } catch(e) { return null; }
+}
+
+function setCache(key, data) {
+  try {
+    localStorage.setItem("rtm_cache_" + key, JSON.stringify({ ts: Date.now(), data: data }));
+  } catch(e) { /* quota exceeded — ignore */ }
+}
+
+/* ===== DATA LOADING ===== */
+function loadEtablissements() {
+  var cached = getCached("etablissements");
+  if (cached) return Promise.resolve(cached);
+  return airtableFetchAll("Etablissement").then(function(records) {
+    var data = records.map(function(r) { return { id: r.id, name: r.fields["Etab"] || "" }; })
+      .filter(function(d) { return d.name; })
+      .sort(function(a, b) { return a.name.localeCompare(b.name); });
+    setCache("etablissements", data);
+    return data;
+  });
+}
+
+function loadEquipements() {
+  var cached = getCached("equipements");
+  if (cached) return Promise.resolve(cached);
+  return airtableFetchAll("Equipement", "fields%5B%5D=Num%C3%A9ro+de+s%C3%A9rie&fields%5B%5D=Etablissement&fields%5B%5D=Modele+2&fields%5B%5D=Type+equipement&fields%5B%5D=Localisation+2024").then(function(records) {
+    var data = records.map(function(r) {
+      return {
+        id: r.id,
+        serial: r.fields["Numéro de série"] || "",
+        etablissement: r.fields["Etablissement"] || [],
+        modele: r.fields["Modele 2"] || [],
+        type: r.fields["Type equipement"] || "",
+        localisation: r.fields["Localisation 2024"] || ""
+      };
+    });
+    setCache("equipements", data);
+    return data;
+  });
+}
+
+function loadLocalisations() {
+  var cached = getCached("localisations");
+  if (cached) return Promise.resolve(cached);
+  return airtableFetchAll("Localisation").then(function(records) {
+    var data = records.map(function(r) {
+      return {
+        id: r.id,
+        name: r.fields["Name"] || "",
+        etablissement: r.fields["Etablissement"] || []
+      };
+    }).filter(function(d) { return d.name; });
+    setCache("localisations", data);
+    return data;
+  });
+}
+
+function loadPieces() {
+  var cached = getCached("pieces");
+  if (cached) return Promise.resolve(cached);
+  return airtableFetchAll("PIECES").then(function(records) {
+    var data = records.map(function(r) {
+      return {
+        id: r.id,
+        numero: r.fields["Numéro"] || "",
+        description: r.fields["Description"] || ""
+      };
+    }).filter(function(d) { return d.numero || d.description; });
+    setCache("pieces", data);
+    return data;
+  });
+}
+
+function loadTechniciens() {
+  var cached = getCached("techniciens");
+  if (cached) return Promise.resolve(cached);
+  return airtableFetchAll("Techniciens").then(function(records) {
+    var data = records.map(function(r) {
+      return { id: r.id, name: r.fields["Name"] || "" };
+    }).filter(function(d) { return d.name; })
+      .sort(function(a, b) { return a.name.localeCompare(b.name); });
+    setCache("techniciens", data);
+    return data;
+  });
+}
+
+/* ===== FORM STATE PERSISTENCE ===== */
+function saveFormState() {
+  try {
+    localStorage.setItem("rtm_form_state", JSON.stringify({
+      mode: state.mode,
+      step: state.currentStep,
+      data: state.formData
+    }));
+  } catch(e) {}
+}
+
+function loadFormState() {
+  try {
+    var raw = localStorage.getItem("rtm_form_state");
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch(e) { return null; }
+}
+
+function clearFormState() {
+  localStorage.removeItem("rtm_form_state");
+}
+
+/* ===== UI HELPERS ===== */
+function showLoading(text) {
+  document.getElementById("loadingText").textContent = text || "Chargement...";
+  document.getElementById("loadingOverlay").classList.remove("hidden");
+}
+
+function hideLoading() {
+  document.getElementById("loadingOverlay").classList.add("hidden");
+}
+
+function showToast(msg, type) {
+  var existing = document.querySelector(".toast");
+  if (existing) existing.remove();
+  var el = document.createElement("div");
+  el.className = "toast toast-" + (type || "success");
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(function() { if (el.parentNode) el.remove(); }, 3000);
+}
+
+function escHtml(s) {
+  var div = document.createElement("div");
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+function highlightMatch(text, query) {
+  if (!query) return escHtml(text);
+  var idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return escHtml(text);
+  return escHtml(text.substring(0, idx)) +
+    '<span class="match">' + escHtml(text.substring(idx, idx + query.length)) + '</span>' +
+    escHtml(text.substring(idx + query.length));
+}
+
+function fuzzyMatch(text, query) {
+  if (!query) return true;
+  return text.toLowerCase().indexOf(query.toLowerCase()) !== -1;
+}
+
+/* ===== LOGIN ===== */
+function initLogin() {
+  var savedToken = localStorage.getItem("rtm_airtable_token");
+  var savedTech = localStorage.getItem("rtm_technician");
+  var savedTechName = localStorage.getItem("rtm_technician_name");
+
+  if (savedToken && savedTech && savedTechName) {
+    state.token = savedToken;
+    state.techId = savedTech;
+    state.techName = savedTechName;
+    showMainApp();
+    return;
+  }
+
+  if (savedToken) {
+    document.getElementById("loginToken").value = savedToken;
+    state.token = savedToken;
+    fetchTechniciansForLogin(savedToken);
+  }
+
+  document.getElementById("loginToken").addEventListener("input", function() {
+    var val = this.value.trim();
+    if (val.length > 10) {
+      state.token = val;
+      fetchTechniciansForLogin(val);
+    }
+  });
+
+  document.getElementById("loginScreen").style.display = "block";
+}
+
+function fetchTechniciansForLogin(token) {
+  var sel = document.getElementById("loginTech");
+  sel.innerHTML = '<option value="">— Chargement... —</option>';
+  sel.disabled = true;
+  document.getElementById("loginBtn").disabled = true;
+  document.getElementById("tokenError").style.display = "none";
+
+  fetch(API_BASE + encodeURIComponent("Techniciens"), {
+    headers: { "Authorization": "Bearer " + token }
+  }).then(function(r) {
+    if (!r.ok) throw new Error("err");
+    return r.json();
+  }).then(function(data) {
+    var techs = (data.records || []).map(function(r) {
+      return { id: r.id, name: r.fields["Name"] || "" };
+    }).filter(function(d) { return d.name; })
+      .sort(function(a, b) { return a.name.localeCompare(b.name); });
+
+    setCache("techniciens", techs);
+
+    sel.innerHTML = '<option value="">— Sélectionner —</option>';
+    techs.forEach(function(t) {
+      var opt = document.createElement("option");
+      opt.value = t.id + "|" + t.name;
+      opt.textContent = t.name;
+      sel.appendChild(opt);
+    });
+    sel.disabled = false;
+
+    sel.onchange = function() {
+      document.getElementById("loginBtn").disabled = !this.value;
+    };
+  }).catch(function() {
+    document.getElementById("tokenError").style.display = "block";
+    sel.innerHTML = '<option value="">— Erreur —</option>';
+  });
+}
+
+function doLogin() {
+  var token = document.getElementById("loginToken").value.trim();
+  var techVal = document.getElementById("loginTech").value;
+  if (!token || !techVal) return;
+
+  var parts = techVal.split("|");
+  state.token = token;
+  state.techId = parts[0];
+  state.techName = parts.slice(1).join("|");
+
+  localStorage.setItem("rtm_airtable_token", token);
+  localStorage.setItem("rtm_technician", state.techId);
+  localStorage.setItem("rtm_technician_name", state.techName);
+
+  showMainApp();
+}
+
+function doLogout() {
+  localStorage.removeItem("rtm_airtable_token");
+  localStorage.removeItem("rtm_technician");
+  localStorage.removeItem("rtm_technician_name");
+  clearFormState();
+  location.reload();
+}
+
+function showMainApp() {
+  document.getElementById("loginScreen").style.display = "none";
+  document.getElementById("mainHeader").style.display = "block";
+  document.getElementById("mainArea").style.display = "block";
+  document.getElementById("headerTech").textContent = "Technicien: " + state.techName;
+
+  showLoading("Chargement des données...");
+  Promise.all([
+    loadEtablissements(),
+    loadEquipements(),
+    loadLocalisations(),
+    loadPieces(),
+    loadTechniciens()
+  ]).then(function() {
+    hideLoading();
+    var saved = loadFormState();
+    if (saved) {
+      state.mode = saved.mode || "entretien";
+      state.formData = saved.data || {};
+      state.currentStep = saved.step || 0;
+    } else {
+      state.formData = {};
+      state.currentStep = 0;
+    }
+    updateTabUI();
+    renderSteps();
+  }).catch(function(err) {
+    hideLoading();
+    showToast("Erreur de chargement: " + err.message, "error");
+    state.formData = {};
+    state.currentStep = 0;
+    renderSteps();
+  });
+}
+
+/* ===== MODE SWITCHING ===== */
+function switchMode(mode) {
+  if (state.mode === mode) return;
+  state.mode = mode;
+  state.currentStep = 0;
+  state.formData = {};
+  clearFormState();
+  updateTabUI();
+  renderSteps();
+}
+
+function updateTabUI() {
+  document.getElementById("tabEntretien").className = "tab" + (state.mode === "entretien" ? " active" : "");
+  document.getElementById("tabTestCharge").className = "tab" + (state.mode === "testcharge" ? " active" : "");
+}
+
+/* ===== STEP DEFINITIONS ===== */
+function getSteps() {
+  if (state.mode === "entretien") {
+    return [
+      { key: "etablissement", title: "Établissement", desc: "Sélectionnez l'établissement" },
+      { key: "serial", title: "Numéro de série", desc: "Scannez ou saisissez le numéro" },
+      { key: "localisation", title: "Localisation", desc: "Emplacement de l'équipement" },
+      { key: "conformite", title: "Conformité", desc: "État de conformité" },
+      { key: "commentaire", title: "Commentaire", desc: "Remarques optionnelles" },
+      { key: "pieces", title: "Pièces", desc: "Pièces remplacées (optionnel)" },
+      { key: "photo", title: "Photo", desc: "Photo optionnelle" },
+      { key: "resume", title: "Résumé", desc: "Vérifiez et soumettez" }
+    ];
+  } else {
+    return [
+      { key: "tc_etablissement", title: "Établissement", desc: "Sélectionnez l'établissement" },
+      { key: "tc_local", title: "Local / Chambre", desc: "Numéro du local" },
+      { key: "tc_type", title: "Type de test", desc: "Choisissez le type de test" },
+      { key: "tc_serial_levier", title: "N° série levier", desc: "Scannez ou saisissez le numéro" },
+      { key: "tc_poids", title: "Poids", desc: "Poids utilisés pour le test" },
+      { key: "tc_conformite", title: "Conformité", desc: "Résultats du test" },
+      { key: "tc_photo_comment", title: "Photo & Commentaire", desc: "Documentation optionnelle" },
+      { key: "tc_resume", title: "Résumé", desc: "Vérifiez et soumettez" }
+    ];
+  }
+}
+
+/* ===== RENDER ===== */
+function renderSteps() {
+  var steps = getSteps();
+  renderProgress(steps);
+  renderCurrentStep(steps);
+  updateNavButtons(steps);
+  saveFormState();
+}
+
+function renderProgress(steps) {
+  var bar = document.getElementById("progressBar");
+  var html = "";
+  for (var i = 0; i < steps.length; i++) {
+    if (i > 0) html += '<div class="progress-line' + (i <= state.currentStep ? ' done' : '') + '"></div>';
+    var cls = "progress-dot";
+    if (i < state.currentStep) cls += " done";
+    else if (i === state.currentStep) cls += " active";
+    html += '<div class="' + cls + '"></div>';
+  }
+  bar.innerHTML = html;
+}
+
+function updateNavButtons(steps) {
+  var btnPrev = document.getElementById("btnPrev");
+  var btnNext = document.getElementById("btnNext");
+  var isFirst = state.currentStep === 0;
+  var isLast = state.currentStep === steps.length - 1;
+
+  btnPrev.style.display = isFirst ? "none" : "flex";
+
+  if (isLast) {
+    btnNext.textContent = "✓ Soumettre";
+    btnNext.className = "btn btn-primary";
+    btnNext.onclick = submitForm;
+  } else {
+    btnNext.textContent = "Suivant →";
+    btnNext.className = "btn btn-primary";
+    btnNext.onclick = nextStep;
+  }
+}
+
+function nextStep() {
+  var steps = getSteps();
+  var stepKey = steps[state.currentStep].key;
+
+  // Skip tc_serial_levier if type is rail only
+  if (state.mode === "testcharge" && stepKey === "tc_type") {
+    if (state.formData.tc_type !== "combined") {
+      // Next step is tc_serial_levier, skip it
+    }
+  }
+
+  if (!validateStep(stepKey)) return;
+
+  if (state.currentStep < steps.length - 1) {
+    state.currentStep++;
+    // Skip levier step if rail only
+    if (state.mode === "testcharge" && steps[state.currentStep].key === "tc_serial_levier" && state.formData.tc_type !== "combined") {
+      state.currentStep++;
+    }
+    renderSteps();
+    window.scrollTo(0, 0);
+  }
+}
+
+function prevStep() {
+  if (state.currentStep > 0) {
+    var steps = getSteps();
+    state.currentStep--;
+    // Skip levier step if rail only
+    if (state.mode === "testcharge" && steps[state.currentStep].key === "tc_serial_levier" && state.formData.tc_type !== "combined") {
+      state.currentStep--;
+    }
+    renderSteps();
+    window.scrollTo(0, 0);
+  }
+}
+
+function validateStep(key) {
+  switch (key) {
+    case "etablissement":
+    case "tc_etablissement":
+      if (!state.formData.etablissementId) { showToast("Veuillez sélectionner un établissement", "error"); return false; }
+      return true;
+    case "serial":
+      if (!state.formData.serialText) { showToast("Veuillez saisir un numéro de série", "error"); return false; }
+      return true;
+    case "conformite":
+      if (!state.formData.conformite) { showToast("Veuillez indiquer la conformité", "error"); return false; }
+      if (state.formData.conformite === "NON CONFORME" && !state.formData.raisonNC) { showToast("Veuillez indiquer la raison de non-conformité", "error"); return false; }
+      return true;
+    case "tc_local":
+      if (!state.formData.tc_local) { showToast("Veuillez saisir le numéro du local", "error"); return false; }
+      return true;
+    case "tc_type":
+      if (!state.formData.tc_type) { showToast("Veuillez choisir le type de test", "error"); return false; }
+      return true;
+    case "tc_serial_levier":
+      if (state.formData.tc_type === "combined" && !state.formData.tc_serial_levier_text) { showToast("Veuillez saisir le N° de série du levier", "error"); return false; }
+      return true;
+    case "tc_conformite":
+      if (!state.formData.tc_conf_rail) { showToast("Veuillez indiquer la conformité du rail", "error"); return false; }
+      if (state.formData.tc_type === "combined" && !state.formData.tc_conf_levier) { showToast("Veuillez indiquer la conformité du levier", "error"); return false; }
+      return true;
+    default:
+      return true;
+  }
+}
+
+/* ===== RENDER INDIVIDUAL STEPS ===== */
+function renderCurrentStep(steps) {
+  var container = document.getElementById("stepsContainer");
+  var stepDef = steps[state.currentStep];
+  var html = '<div class="step active">';
+  html += '<div class="step-title">' + escHtml(stepDef.title) + '</div>';
+  html += '<div class="step-desc">' + escHtml(stepDef.desc) + '</div>';
+
+  switch (stepDef.key) {
+    case "etablissement":
+    case "tc_etablissement":
+      html += renderEtablissementStep();
+      break;
+    case "serial":
+      html += renderSerialStep();
+      break;
+    case "localisation":
+      html += renderLocalisationStep();
+      break;
+    case "conformite":
+      html += renderConformiteStep();
+      break;
+    case "commentaire":
+      html += renderCommentaireStep();
+      break;
+    case "pieces":
+      html += renderPiecesStep();
+      break;
+    case "photo":
+      html += renderPhotoStep();
+      break;
+    case "resume":
+      html += renderResumeEntretien();
+      break;
+    case "tc_local":
+      html += renderTcLocalStep();
+      break;
+    case "tc_type":
+      html += renderTcTypeStep();
+      break;
+    case "tc_serial_levier":
+      html += renderTcSerialLevierStep();
+      break;
+    case "tc_poids":
+      html += renderTcPoidsStep();
+      break;
+    case "tc_conformite":
+      html += renderTcConformiteStep();
+      break;
+    case "tc_photo_comment":
+      html += renderTcPhotoCommentStep();
+      break;
+    case "tc_resume":
+      html += renderResumeTc();
+      break;
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+
+  // Post-render hooks
+  switch (stepDef.key) {
+    case "etablissement":
+    case "tc_etablissement":
+      setupEtablissementSearch();
+      break;
+    case "serial":
+      setupSerialSearch();
+      break;
+    case "localisation":
+      setupLocalisationSearch();
+      break;
+    case "pieces":
+      setupPiecesSearch();
+      break;
+    case "tc_serial_levier":
+      setupTcSerialLevierSearch();
+      break;
+  }
+}
+
+/* ---- ETABLISSEMENT STEP ---- */
+function renderEtablissementStep() {
+  var selected = state.formData.etablissementName || "";
+  var html = '<div class="search-container">';
+  html += '<svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>';
+  html += '<input type="text" class="search-input" id="etabSearch" placeholder="Rechercher un établissement..." value="' + escHtml(selected) + '">';
+  html += '</div>';
+  html += '<div class="search-results" id="etabResults"></div>';
+  if (selected) {
+    html += '<div style="margin-top:12px;padding:10px 14px;background:var(--cyan-glow);border-radius:var(--radius-sm);font-size:0.85rem;">✓ Sélectionné: <strong>' + escHtml(selected) + '</strong></div>';
+  }
+  return html;
+}
+
+function setupEtablissementSearch() {
+  var input = document.getElementById("etabSearch");
+  var results = document.getElementById("etabResults");
+  if (!input) return;
+
+  var data = getCached("etablissements") || [];
+
+  function render(query) {
+    var filtered = data.filter(function(d) { return fuzzyMatch(d.name, query); });
+    if (!query && filtered.length > 50) filtered = filtered.slice(0, 50);
+    var h = "";
+    filtered.forEach(function(d) {
+      var sel = state.formData.etablissementId === d.id ? " selected" : "";
+      h += '<div class="search-item' + sel + '" onclick="selectEtablissement(\'' + d.id + '\',\'' + escHtml(d.name).replace(/'/g, "\\'") + '\')">' + highlightMatch(d.name, query) + '</div>';
+    });
+    if (filtered.length === 0) h = '<div class="search-item" style="color:var(--text-muted);pointer-events:none;">Aucun résultat</div>';
+    results.innerHTML = h;
+  }
+
+  input.addEventListener("input", function() { render(this.value.trim()); });
+  input.addEventListener("focus", function() { render(this.value.trim()); });
+  render(input.value.trim());
+}
+
+function selectEtablissement(id, name) {
+  state.formData.etablissementId = id;
+  state.formData.etablissementName = name;
+  // Clear dependent data
+  state.formData.localisationId = "";
+  state.formData.localisationName = "";
+  saveFormState();
+  renderSteps();
+}
+
+/* ---- SERIAL NUMBER STEP ---- */
+function renderSerialStep() {
+  var val = state.formData.serialText || "";
+  var html = '<div class="form-group">';
+  html += '<label class="form-label">Numéro de série</label>';
+  html += '<div class="input-with-btn">';
+  html += '<input type="text" class="form-input" id="serialInput" placeholder="Ex: ABC-12345" value="' + escHtml(val) + '">';
+  html += '<button class="btn-icon" onclick="startOcr(\'serial\')" title="Scanner avec caméra">📷</button>';
+  html += '</div></div>';
+  html += '<div class="search-results" id="serialResults" style="margin-top:8px;"></div>';
+  if (state.formData.equipementId) {
+    html += '<div style="margin-top:12px;padding:10px 14px;background:var(--cyan-glow);border-radius:var(--radius-sm);font-size:0.85rem;">✓ Équipement trouvé: <strong>' + escHtml(state.formData.serialText) + '</strong></div>';
+  }
+  return html;
+}
+
+function setupSerialSearch() {
+  var input = document.getElementById("serialInput");
+  var results = document.getElementById("serialResults");
+  if (!input) return;
+
+  var equipements = getCached("equipements") || [];
+
+  input.addEventListener("input", function() {
+    var q = this.value.trim();
+    state.formData.serialText = q;
+    state.formData.equipementId = "";
+    saveFormState();
+
+    if (q.length < 2) { results.innerHTML = ""; return; }
+
+    var filtered = equipements.filter(function(e) { return fuzzyMatch(e.serial, q); }).slice(0, 20);
+    var h = "";
+    filtered.forEach(function(e) {
+      h += '<div class="search-item" onclick="selectEquipement(\'' + e.id + '\',\'' + escHtml(e.serial).replace(/'/g, "\\'") + '\')">';
+      h += highlightMatch(e.serial, q);
+      if (e.type) h += ' <span style="color:var(--text-muted);font-size:0.8rem;">(' + escHtml(e.type) + ')</span>';
+      h += '</div>';
+    });
+    results.innerHTML = h;
+  });
+}
+
+function selectEquipement(id, serial) {
+  state.formData.equipementId = id;
+  state.formData.serialText = serial;
+  saveFormState();
+  renderSteps();
+}
+
+/* ---- LOCALISATION STEP ---- */
+function renderLocalisationStep() {
+  var selected = state.formData.localisationName || "";
+  var html = '<div class="search-container">';
+  html += '<svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>';
+  html += '<input type="text" class="search-input" id="locSearch" placeholder="Rechercher une localisation..." value="' + escHtml(selected) + '">';
+  html += '</div>';
+  html += '<div class="search-results" id="locResults"></div>';
+  html += '<div class="add-new-btn" onclick="addNewLocalisation()">+ Ajouter une nouvelle localisation</div>';
+  if (selected) {
+    html += '<div style="margin-top:12px;padding:10px 14px;background:var(--cyan-glow);border-radius:var(--radius-sm);font-size:0.85rem;">✓ Sélectionné: <strong>' + escHtml(selected) + '</strong></div>';
+  }
+  return html;
+}
+
+function setupLocalisationSearch() {
+  var input = document.getElementById("locSearch");
+  var results = document.getElementById("locResults");
+  if (!input) return;
+
+  var allLocs = getCached("localisations") || [];
+  var etabId = state.formData.etablissementId;
+
+  // Filter by establishment
+  var locs = allLocs.filter(function(l) {
+    if (!etabId) return true;
+    return l.etablissement && l.etablissement.indexOf(etabId) !== -1;
+  });
+
+  function render(query) {
+    var filtered = locs.filter(function(d) { return fuzzyMatch(d.name, query); });
+    if (!query && filtered.length > 50) filtered = filtered.slice(0, 50);
+    var h = "";
+    filtered.forEach(function(d) {
+      var sel = state.formData.localisationId === d.id ? " selected" : "";
+      h += '<div class="search-item' + sel + '" onclick="selectLocalisation(\'' + d.id + '\',\'' + escHtml(d.name).replace(/'/g, "\\'") + '\')">' + highlightMatch(d.name, query) + '</div>';
+    });
+    if (filtered.length === 0 && query) h = '<div class="search-item" style="color:var(--text-muted);pointer-events:none;">Aucun résultat</div>';
+    results.innerHTML = h;
+  }
+
+  input.addEventListener("input", function() { render(this.value.trim()); });
+  input.addEventListener("focus", function() { render(this.value.trim()); });
+  render(input.value.trim());
+}
+
+function selectLocalisation(id, name) {
+  state.formData.localisationId = id;
+  state.formData.localisationName = name;
+  saveFormState();
+  renderSteps();
+}
+
+function addNewLocalisation() {
+  var name = prompt("Nom de la nouvelle localisation:");
+  if (!name || !name.trim()) return;
+  name = name.trim();
+  state.formData.localisationId = "";
+  state.formData.localisationName = name;
+  state.formData.newLocalisation = true;
+  saveFormState();
+  renderSteps();
+}
+
+/* ---- CONFORMITE STEP ---- */
+function renderConformiteStep() {
+  var conf = state.formData.conformite || "";
+  var html = '<div class="conformity-btns">';
+  html += '<div class="conf-btn conf-btn-green' + (conf === "CONFORME" ? " selected" : "") + '" onclick="setConformite(\'CONFORME\')">';
+  html += '<span class="icon">✓</span>CONFORME</div>';
+  html += '<div class="conf-btn conf-btn-red' + (conf === "NON CONFORME" ? " selected" : "") + '" onclick="setConformite(\'NON CONFORME\')">';
+  html += '<span class="icon">✗</span>NON CONFORME</div>';
+  html += '</div>';
+
+  if (conf === "NON CONFORME") {
+    html += '<div class="form-group" style="margin-top:20px;">';
+    html += '<label class="form-label">Raison de la non-conformité *</label>';
+    html += '<textarea class="form-input" id="raisonNC" placeholder="Décrivez la raison..." oninput="state.formData.raisonNC=this.value;saveFormState();">' + escHtml(state.formData.raisonNC || "") + '</textarea>';
+    html += '</div>';
+  }
+  return html;
+}
+
+function setConformite(val) {
+  state.formData.conformite = val;
+  if (val === "CONFORME") state.formData.raisonNC = "";
+  saveFormState();
+  renderSteps();
+}
+
+/* ---- COMMENTAIRE STEP ---- */
+function renderCommentaireStep() {
+  var html = '<div class="form-group">';
+  html += '<label class="form-label">Commentaire technique (optionnel)</label>';
+  html += '<textarea class="form-input" id="commentInput" placeholder="Ajoutez un commentaire..." oninput="state.formData.commentaire=this.value;saveFormState();">' + escHtml(state.formData.commentaire || "") + '</textarea>';
+  html += '</div>';
+  return html;
+}
+
+/* ---- PIECES STEP ---- */
+function renderPiecesStep() {
+  var selectedPieces = state.formData.pieces || [];
+  var html = '<div class="form-group">';
+  html += '<label class="form-label">Rechercher des pièces</label>';
+  html += '<div class="search-container">';
+  html += '<svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>';
+  html += '<input type="text" class="search-input" id="piecesSearch" placeholder="Numéro ou description...">';
+  html += '</div>';
+  html += '<div class="search-results" id="piecesResults" style="max-height:200px;"></div>';
+  html += '</div>';
+
+  if (selectedPieces.length > 0) {
+    html += '<div class="form-group"><label class="form-label">Pièces sélectionnées</label>';
+    html += '<div class="chips-container">';
+    selectedPieces.forEach(function(p, i) {
+      html += '<div class="chip">' + escHtml(p.numero || p.description);
+      html += '<span class="chip-remove" onclick="removePiece(' + i + ')">✕</span></div>';
+    });
+    html += '</div></div>';
+  }
+  return html;
+}
+
+function setupPiecesSearch() {
+  var input = document.getElementById("piecesSearch");
+  var results = document.getElementById("piecesResults");
+  if (!input) return;
+
+  var allPieces = getCached("pieces") || [];
+  var selectedIds = (state.formData.pieces || []).map(function(p) { return p.id; });
+
+  input.addEventListener("input", function() {
+    var q = this.value.trim();
+    if (q.length < 1) { results.innerHTML = ""; return; }
+
+    var filtered = allPieces.filter(function(p) {
+      if (selectedIds.indexOf(p.id) !== -1) return false;
+      return fuzzyMatch(p.numero, q) || fuzzyMatch(p.description, q);
+    }).slice(0, 20);
+
+    var h = "";
+    filtered.forEach(function(p) {
+      var label = p.numero + (p.description ? " — " + p.description : "");
+      h += '<div class="search-item" onclick="addPiece(\'' + p.id + '\',\'' + escHtml(p.numero).replace(/'/g, "\\'") + '\',\'' + escHtml(p.description).replace(/'/g, "\\'") + '\')">' + highlightMatch(label, q) + '</div>';
+    });
+    results.innerHTML = h;
+  });
+}
+
+function addPiece(id, numero, description) {
+  if (!state.formData.pieces) state.formData.pieces = [];
+  state.formData.pieces.push({ id: id, numero: numero, description: description });
+  saveFormState();
+  renderSteps();
+}
+
+function removePiece(index) {
+  state.formData.pieces.splice(index, 1);
+  saveFormState();
+  renderSteps();
+}
+
+/* ---- PHOTO STEP ---- */
+function renderPhotoStep() {
+  var html = '';
+  if (!state.formData.photoData) {
+    html += '<div class="photo-zone" onclick="document.getElementById(\'photoFileInput\').click()">';
+    html += '<div class="icon">📸</div>';
+    html += '<p>Appuyez pour prendre une photo</p>';
+    html += '</div>';
+  } else {
+    html += '<div class="photo-preview">';
+    html += '<img src="' + state.formData.photoData + '" alt="Photo">';
+    html += '<div class="remove-photo" onclick="removePhoto()">✕</div>';
+    html += '</div>';
+  }
+  return html;
+}
+
+function removePhoto() {
+  state.formData.photoData = null;
+  state.formData.photoFile = null;
+  saveFormState();
+  renderSteps();
+}
+
+/* ---- RESUME ENTRETIEN ---- */
+function renderResumeEntretien() {
+  var d = state.formData;
+  var html = '<div class="summary-card">';
+  html += summaryRow("Établissement", d.etablissementName || "—");
+  html += summaryRow("N° de série", d.serialText || "—");
+  html += summaryRow("Localisation", d.localisationName || "—");
+  var confClass = d.conformite === "CONFORME" ? "conforme" : (d.conformite === "NON CONFORME" ? "non-conforme" : "");
+  html += summaryRow("Conformité", d.conformite || "—", confClass);
+  if (d.conformite === "NON CONFORME" && d.raisonNC) {
+    html += summaryRow("Raison NC", d.raisonNC);
+  }
+  if (d.commentaire) html += summaryRow("Commentaire", d.commentaire);
+  if (d.pieces && d.pieces.length > 0) {
+    html += summaryRow("Pièces", d.pieces.map(function(p) { return p.numero; }).join(", "));
+  }
+  html += summaryRow("Photo", d.photoData ? "✓ Jointe" : "Aucune");
+  html += summaryRow("Technicien", state.techName);
+  html += summaryRow("Date", new Date().toLocaleDateString("fr-FR"));
+  html += '</div>';
+  return html;
+}
+
+function summaryRow(label, value, cls) {
+  return '<div class="summary-row"><div class="summary-label">' + escHtml(label) + '</div><div class="summary-value' + (cls ? " " + cls : "") + '">' + escHtml(value) + '</div></div>';
+}
+
+/* ==============================
+   TEST DE CHARGE STEPS
+   ============================== */
+
+/* ---- TC LOCAL ---- */
+function renderTcLocalStep() {
+  var html = '<div class="form-group">';
+  html += '<label class="form-label">Numéro du local / chambre</label>';
+  html += '<input type="text" class="form-input" id="tcLocalInput" placeholder="Ex: Chambre 101" value="' + escHtml(state.formData.tc_local || "") + '" oninput="state.formData.tc_local=this.value;saveFormState();">';
+  html += '</div>';
+  return html;
+}
+
+/* ---- TC TYPE ---- */
+function renderTcTypeStep() {
+  var t = state.formData.tc_type || "";
+  var html = '<div style="display:flex;flex-direction:column;gap:12px;">';
+  html += '<div class="conf-btn' + (t === "rail" ? " conf-btn-green selected" : " conf-btn-green") + '" style="border-color:var(--border);" onclick="setTcType(\'rail\')">';
+  html += '<span class="icon">🛤️</span>Rail seulement</div>';
+  html += '<div class="conf-btn' + (t === "combined" ? " conf-btn-green selected" : " conf-btn-green") + '" style="border-color:var(--border);" onclick="setTcType(\'combined\')">';
+  html += '<span class="icon">⚙️</span>Test combiné Rail + Moteur</div>';
+  html += '</div>';
+  return html;
+}
+
+function setTcType(val) {
+  state.formData.tc_type = val;
+  if (val === "rail") {
+    state.formData.tc_serial_levier_text = "";
+    state.formData.tc_equipement_levier_id = "";
+    state.formData.tc_conf_levier = "";
+    state.formData.tc_poids_levier = 600;
+  }
+  saveFormState();
+  renderSteps();
+}
+
+/* ---- TC SERIAL LEVIER ---- */
+function renderTcSerialLevierStep() {
+  var val = state.formData.tc_serial_levier_text || "";
+  var html = '<div class="form-group">';
+  html += '<label class="form-label">N° de série du levier/moteur</label>';
+  html += '<div class="input-with-btn">';
+  html += '<input type="text" class="form-input" id="tcSerialLevierInput" placeholder="Ex: MOT-12345" value="' + escHtml(val) + '">';
+  html += '<button class="btn-icon" onclick="startOcr(\'tc_serial_levier\')" title="Scanner avec caméra">📷</button>';
+  html += '</div></div>';
+  html += '<div class="search-results" id="tcLevierResults" style="margin-top:8px;"></div>';
+  if (state.formData.tc_equipement_levier_id) {
+    html += '<div style="margin-top:12px;padding:10px 14px;background:var(--cyan-glow);border-radius:var(--radius-sm);font-size:0.85rem;">✓ Équipement trouvé: <strong>' + escHtml(state.formData.tc_serial_levier_text) + '</strong></div>';
+  }
+  return html;
+}
+
+function setupTcSerialLevierSearch() {
+  var input = document.getElementById("tcSerialLevierInput");
+  var results = document.getElementById("tcLevierResults");
+  if (!input) return;
+
+  var equipements = getCached("equipements") || [];
+
+  input.addEventListener("input", function() {
+    var q = this.value.trim();
+    state.formData.tc_serial_levier_text = q;
+    state.formData.tc_equipement_levier_id = "";
+    saveFormState();
+
+    if (q.length < 2) { results.innerHTML = ""; return; }
+
+    var filtered = equipements.filter(function(e) { return fuzzyMatch(e.serial, q); }).slice(0, 20);
+    var h = "";
+    filtered.forEach(function(e) {
+      h += '<div class="search-item" onclick="selectTcLevier(\'' + e.id + '\',\'' + escHtml(e.serial).replace(/'/g, "\\'") + '\')">';
+      h += highlightMatch(e.serial, q);
+      if (e.type) h += ' <span style="color:var(--text-muted);font-size:0.8rem;">(' + escHtml(e.type) + ')</span>';
+      h += '</div>';
+    });
+    results.innerHTML = h;
+  });
+}
+
+function selectTcLevier(id, serial) {
+  state.formData.tc_equipement_levier_id = id;
+  state.formData.tc_serial_levier_text = serial;
+  saveFormState();
+  renderSteps();
+}
+
+/* ---- TC POIDS ---- */
+function renderTcPoidsStep() {
+  var pr = state.formData.tc_poids_rail;
+  if (pr === undefined || pr === null) { state.formData.tc_poids_rail = 625; pr = 625; }
+  var pl = state.formData.tc_poids_levier;
+  if (pl === undefined || pl === null) { state.formData.tc_poids_levier = 600; pl = 600; }
+
+  var html = '<div class="form-group">';
+  html += '<label class="form-label">Poids utilisé — Rail</label>';
+  html += '<div class="number-group">';
+  html += '<input type="number" class="form-input" id="poidsRail" value="' + pr + '" oninput="state.formData.tc_poids_rail=Number(this.value);saveFormState();" style="max-width:150px;">';
+  html += '<span class="unit">kg</span>';
+  html += '</div></div>';
+
+  if (state.formData.tc_type === "combined") {
+    html += '<div class="form-group">';
+    html += '<label class="form-label">Poids utilisé — Levier/Moteur</label>';
+    html += '<div class="number-group">';
+    html += '<input type="number" class="form-input" id="poidsLevier" value="' + pl + '" oninput="state.formData.tc_poids_levier=Number(this.value);saveFormState();" style="max-width:150px;">';
+    html += '<span class="unit">kg</span>';
+    html += '</div></div>';
+  }
+  return html;
+}
+
+/* ---- TC CONFORMITE ---- */
+function renderTcConformiteStep() {
+  var cr = state.formData.tc_conf_rail || "";
+  var cl = state.formData.tc_conf_levier || "";
+
+  var html = '<div class="section-label">Conformité du rail</div>';
+  html += '<div class="conformity-btns" style="margin-bottom:24px;">';
+  html += '<div class="conf-btn conf-btn-green' + (cr === "CONFORME" ? " selected" : "") + '" onclick="state.formData.tc_conf_rail=\'CONFORME\';saveFormState();renderSteps();">';
+  html += '<span class="icon">✓</span>CONFORME</div>';
+  html += '<div class="conf-btn conf-btn-red' + (cr === "NON CONFORME" ? " selected" : "") + '" onclick="state.formData.tc_conf_rail=\'NON CONFORME\';saveFormState();renderSteps();">';
+  html += '<span class="icon">✗</span>NON CONFORME</div>';
+  html += '</div>';
+
+  if (state.formData.tc_type === "combined") {
+    html += '<div class="section-label">Conformité du levier/moteur</div>';
+    html += '<div class="conformity-btns">';
+    html += '<div class="conf-btn conf-btn-green' + (cl === "CONFORME" ? " selected" : "") + '" onclick="state.formData.tc_conf_levier=\'CONFORME\';saveFormState();renderSteps();">';
+    html += '<span class="icon">✓</span>CONFORME</div>';
+    html += '<div class="conf-btn conf-btn-red' + (cl === "NON CONFORME" ? " selected" : "") + '" onclick="state.formData.tc_conf_levier=\'NON CONFORME\';saveFormState();renderSteps();">';
+    html += '<span class="icon">✗</span>NON CONFORME</div>';
+    html += '</div>';
+  }
+  return html;
+}
+
+/* ---- TC PHOTO + COMMENT ---- */
+function renderTcPhotoCommentStep() {
+  var html = '<div class="form-group">';
+  html += '<label class="form-label">Commentaire technique (optionnel)</label>';
+  html += '<textarea class="form-input" id="tcCommentInput" placeholder="Ajoutez un commentaire..." oninput="state.formData.tc_commentaire=this.value;saveFormState();">' + escHtml(state.formData.tc_commentaire || "") + '</textarea>';
+  html += '</div>';
+
+  if (!state.formData.tc_photoData) {
+    html += '<div class="photo-zone" onclick="document.getElementById(\'photoFileInput\').setAttribute(\'data-target\',\'tc\');document.getElementById(\'photoFileInput\').click();">';
+    html += '<div class="icon">📸</div>';
+    html += '<p>Appuyez pour prendre une photo</p>';
+    html += '</div>';
+  } else {
+    html += '<div class="photo-preview">';
+    html += '<img src="' + state.formData.tc_photoData + '" alt="Photo">';
+    html += '<div class="remove-photo" onclick="state.formData.tc_photoData=null;saveFormState();renderSteps();">✕</div>';
+    html += '</div>';
+  }
+  return html;
+}
+
+/* ---- TC RESUME ---- */
+function renderResumeTc() {
+  var d = state.formData;
+  var html = '<div class="summary-card">';
+  html += summaryRow("Établissement", d.etablissementName || "—");
+  html += summaryRow("Local / Chambre", d.tc_local || "—");
+  html += summaryRow("Type de test", d.tc_type === "combined" ? "Rail + Moteur" : "Rail seulement");
+  if (d.tc_type === "combined") {
+    html += summaryRow("N° série levier", d.tc_serial_levier_text || "—");
+  }
+  html += summaryRow("Poids rail", (d.tc_poids_rail || 625) + " kg");
+  if (d.tc_type === "combined") {
+    html += summaryRow("Poids levier", (d.tc_poids_levier || 600) + " kg");
+  }
+  var crClass = d.tc_conf_rail === "CONFORME" ? "conforme" : "non-conforme";
+  html += summaryRow("Conformité rail", d.tc_conf_rail || "—", crClass);
+  if (d.tc_type === "combined") {
+    var clClass = d.tc_conf_levier === "CONFORME" ? "conforme" : "non-conforme";
+    html += summaryRow("Conformité levier", d.tc_conf_levier || "—", clClass);
+  }
+  if (d.tc_commentaire) html += summaryRow("Commentaire", d.tc_commentaire);
+  html += summaryRow("Photo", d.tc_photoData ? "✓ Jointe" : "Aucune");
+  html += summaryRow("Technicien", state.techName);
+  html += summaryRow("Date", new Date().toLocaleDateString("fr-FR"));
+  html += '</div>';
+  return html;
+}
+
+/* ===== OCR ===== */
+var ocrTargetField = "";
+
+function startOcr(targetField) {
+  ocrTargetField = targetField;
+  var ocrInput = document.getElementById("ocrFileInput");
+  ocrInput.value = "";
+  ocrInput.click();
+}
+
+document.getElementById("ocrFileInput").addEventListener("change", function(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+
+  showLoading("Analyse OCR en cours...");
+
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    var imgData = ev.target.result;
+
+    if (typeof Tesseract !== "undefined" && Tesseract.recognize) {
+      Tesseract.recognize(imgData, "fra+eng", {
+        logger: function() {}
+      }).then(function(result) {
+        hideLoading();
+        var text = (result.data ? result.data.text : result.text || "").trim();
+        // Clean up: take first line that looks like a serial
+        var lines = text.split(/\n/).map(function(l) { return l.trim(); }).filter(function(l) { return l.length > 2; });
+        var best = lines[0] || text;
+        // Remove whitespace within serial
+        best = best.replace(/\s+/g, "");
+
+        document.getElementById("ocrResult").value = best;
+        document.getElementById("ocrModal").classList.remove("hidden");
+      }).catch(function(err) {
+        hideLoading();
+        showToast("Erreur OCR: " + err.message, "error");
+      });
+    } else {
+      hideLoading();
+      showToast("Tesseract.js non chargé. Vérifiez votre connexion.", "error");
+    }
+  };
+  reader.readAsDataURL(file);
+});
+
+function closeOcrModal(confirmed) {
+  document.getElementById("ocrModal").classList.add("hidden");
+  if (confirmed) {
+    var val = document.getElementById("ocrResult").value.trim();
+    if (ocrTargetField === "serial") {
+      state.formData.serialText = val;
+      var input = document.getElementById("serialInput");
+      if (input) { input.value = val; input.dispatchEvent(new Event("input")); }
+    } else if (ocrTargetField === "tc_serial_levier") {
+      state.formData.tc_serial_levier_text = val;
+      var input2 = document.getElementById("tcSerialLevierInput");
+      if (input2) { input2.value = val; input2.dispatchEvent(new Event("input")); }
+    }
+    saveFormState();
+  }
+}
+
+/* ===== PHOTO CAPTURE ===== */
+document.getElementById("photoFileInput").addEventListener("change", function(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+
+  var target = this.getAttribute("data-target") || "entretien";
+
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    if (target === "tc") {
+      state.formData.tc_photoData = ev.target.result;
+      state.formData.tc_photoFile = file;
+    } else {
+      state.formData.photoData = ev.target.result;
+      state.formData.photoFile = file;
+    }
+    saveFormState();
+    renderSteps();
+  };
+  reader.readAsDataURL(file);
+  this.removeAttribute("data-target");
+});
+
+/* ===== PHOTO UPLOAD TO AIRTABLE ===== */
+function uploadPhotoToAirtable(base64Data) {
+  // Airtable accepts attachment URLs — we use a data URI approach
+  // For production, you'd upload to a hosting service first.
+  // Airtable attachment field accepts [{url: "..."}]
+  // We'll use the base64 directly as a workaround if small enough
+  // In practice, Airtable needs a publicly accessible URL
+  // We'll skip photo for the API call and note it
+  return null;
+}
+
+/* ===== SUBMIT ===== */
+function submitForm() {
+  if (state.mode === "entretien") {
+    submitEntretien();
+  } else {
+    submitTestCharge();
+  }
+}
+
+function submitEntretien() {
+  var d = state.formData;
+  showLoading("Envoi en cours...");
+
+  var fields = {
+    "Conformité": d.conformite,
+    "Localisation": d.localisationName || "",
+    "Date reelle": new Date().toISOString().split("T")[0],
+    "Techniciens": [state.techId]
+  };
+
+  // Link to equipment
+  if (d.equipementId) {
+    fields["Numero de série"] = [d.equipementId];
+  }
+
+  if (d.commentaire) fields["Commentaire tech"] = d.commentaire;
+  if (d.conformite === "NON CONFORME" && d.raisonNC) {
+    fields["Raison de la NON-CONFORMITÉ"] = d.raisonNC;
+  }
+  if (d.pieces && d.pieces.length > 0) {
+    fields["PIECES"] = d.pieces.map(function(p) { return p.id; });
+  }
+
+  // Photo: Airtable attachments need public URLs
+  // If we have photo data, we try to include it
+  if (d.photoData) {
+    fields["Photo"] = [{ url: d.photoData }];
+  }
+
+  airtableCreate("Entretien", fields).then(function(result) {
+    hideLoading();
+    if (navigator.vibrate) navigator.vibrate(100);
+    showToast("✓ Entretien enregistré avec succès !", "success");
+    state.formData = {};
+    state.currentStep = 0;
+    clearFormState();
+    renderSteps();
+  }).catch(function(err) {
+    hideLoading();
+    showToast("Erreur: " + err.message, "error");
+    console.error("Submit error:", err);
+  });
+}
+
+function submitTestCharge() {
+  var d = state.formData;
+  showLoading("Envoi en cours...");
+
+  var fields = {
+    "Conformité rail": d.tc_conf_rail,
+    "Poids utilisé": d.tc_poids_rail || 625,
+    "Local": d.tc_local || "",
+    "Techniciens": [state.techId],
+    "Etablissement du test de charge": d.etablissementId ? [d.etablissementId] : []
+  };
+
+  // Rail link — we need an equipment record for rail
+  // Since there's no serial for rail in this flow, we skip equipment link for rail
+  // unless we can identify it differently
+
+  if (d.tc_type === "combined") {
+    fields["Conformité levier"] = d.tc_conf_levier;
+    fields["Poids utilisé levier"] = d.tc_poids_levier || 600;
+    if (d.tc_equipement_levier_id) {
+      fields["Numero de série"] = [d.tc_equipement_levier_id];
+    }
+  }
+
+  if (d.tc_commentaire) fields["Commentaire tech"] = d.tc_commentaire;
+
+  if (d.tc_photoData) {
+    fields["Photo"] = [{ url: d.tc_photoData }];
+  }
+
+  airtableCreate("Test de charge", fields).then(function(result) {
+    hideLoading();
+    if (navigator.vibrate) navigator.vibrate(100);
+    showToast("✓ Test de charge enregistré avec succès !", "success");
+    state.formData = {};
+    state.currentStep = 0;
+    clearFormState();
+    renderSteps();
+  }).catch(function(err) {
+    hideLoading();
+    showToast("Erreur: " + err.message, "error");
+    console.error("Submit error:", err);
+  });
+}
+
+/* ===== INIT ===== */
+document.addEventListener("DOMContentLoaded", function() {
+  initLogin();
+});
+</script>
+</body>
+</html>
