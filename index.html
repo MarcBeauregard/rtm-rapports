@@ -805,7 +805,7 @@ function generatePDF(data) {
   for (var vi = 0; vi < data.entretiens.length; vi++) {
     var vent = data.entretiens[vi];
     var vf = vent.fields;
-    var comment = vf["Commentaire"] || vf["Commentaires"] || "";
+    var comment = vf["Commentaire tech"] || vf["Commentaire"] || vf["Commentaires"] || "";
     var vdate = getEntretienDate(vent);
     visitComments.push({
       num: vi + 1,
