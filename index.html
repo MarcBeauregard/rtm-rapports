@@ -518,7 +518,13 @@ function generatePDF(data) {
   var isRailEquip = (ef["Numéro de série"] || "").toString().indexOf("RAIL-") === 0;
   var techName = data.technicien ? (data.technicien.fields["Name"] || data.technicien.fields["Nom"] || "—") : "—";
   var nVisites = data.entretiens.length;
-  var nompdf = lef["nompdf"] || ef["Numéro de série"] || ef["Name"] || data.equip.id;
+  var etabName = etf["Etab"] || etf["Nom"] || "";
+  var nompdf;
+  if (isRailEquip) {
+    nompdf = (etabName ? etabName + " - " : "") + (ef["Numéro de série"] || data.equip.id);
+  } else {
+    nompdf = lef["nompdf"] || ef["Numéro de série"] || ef["Name"] || data.equip.id;
+  }
   var equipDate = getEntretienDate(data.lastEntretien) || (data.testCharge ? (data.testCharge.fields["Date"] || "") : "") || ef["Date de création"] || "";
   var dateStr = formatDate(equipDate);
   var conforme, nonConforme, raisonNC, typeFORM;
