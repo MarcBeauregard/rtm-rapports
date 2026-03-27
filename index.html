@@ -1025,6 +1025,24 @@ function generatePDF(data) {
     }
 
     y += 16;
+
+    /* Commentaire tech du test de charge (pour les rails surtout) */
+    var tdcComment = tc["Commentaire tech"] || "";
+    if (tdcComment) {
+      doc.setFillColor(248, 250, 254);
+      var tdcComLines = doc.splitTextToSize(tdcComment, cw - 10);
+      var tdcComH = Math.max(10, tdcComLines.length * 4 + 6);
+      doc.rect(ml, y, cw, tdcComH, "FD");
+      doc.setFont("Roboto", "bold");
+      doc.setFontSize(5.5);
+      doc.setTextColor(gray[0], gray[1], gray[2]);
+      doc.text("COMMENTAIRE DU TECHNICIEN", ml + 4, y + 4);
+      doc.setFontSize(7.5);
+      doc.setTextColor(nearBlack[0], nearBlack[1], nearBlack[2]);
+      doc.text(tdcComLines, ml + 4, y + 8);
+      y += tdcComH;
+    }
+
     y = sectionEnd(y) + 3;
   }
 
