@@ -390,6 +390,11 @@ textarea.form-input { resize: vertical; min-height: 100px; }
       <div class="login-error" id="tokenError">Jeton invalide ou connexion échouée</div>
     </div>
     <div class="login-field">
+      <label>Clé API Anthropic (pour OCR photo)</label>
+      <input type="password" id="loginAnthropicKey" placeholder="sk-ant-..." autocomplete="off">
+      <div style="color:var(--text-dim);font-size:0.75rem;margin-top:4px">Optionnel — pour scanner les numéros de série par photo</div>
+    </div>
+    <div class="login-field">
       <label>Technicien</label>
       <select id="loginTech" disabled>
         <option value="">— Chargement... —</option>
@@ -445,7 +450,7 @@ textarea.form-input { resize: vertical; min-height: 100px; }
 <input type="file" accept="image/*" capture="environment" id="ocrFileInput" class="hidden">
 <input type="file" accept="image/*" capture="environment" id="photoFileInput" class="hidden">
 
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<!-- Claude Vision API pour OCR -->
 <script>
 /* ========================================================
    RTM Medical — Formulaire Terrain
@@ -706,6 +711,11 @@ function initLogin() {
     fetchTechniciansForLogin(savedToken);
   }
 
+  var savedAnthropicKey = localStorage.getItem("rtm_anthropic_key");
+  if (savedAnthropicKey) {
+    document.getElementById("loginAnthropicKey").value = savedAnthropicKey;
+  }
+
   document.getElementById("loginToken").addEventListener("input", function() {
     var val = this.value.trim();
     if (val.length > 10) {
@@ -768,6 +778,9 @@ function doLogin() {
   localStorage.setItem("rtm_airtable_token", token);
   localStorage.setItem("rtm_technician", state.techId);
   localStorage.setItem("rtm_technician_name", state.techName);
+
+  var anthropicKey = document.getElementById("loginAnthropicKey").value.trim();
+  if (anthropicKey) localStorage.setItem("rtm_anthropic_key", anthropicKey);
 
   showMainApp();
 }
@@ -1559,34 +1572,55 @@ document.getElementById("ocrFileInput").addEventListener("change", function(e) {
   var file = e.target.files[0];
   if (!file) return;
 
-  showLoading("Analyse OCR en cours...");
+  showLoading("Analyse de la photo en cours...");
 
   var reader = new FileReader();
   reader.onload = function(ev) {
     var imgData = ev.target.result;
+    var base64 = imgData.split(",")[1];
+    var mediaType = imgData.split(";")[0].split(":")[1] || "image/jpeg";
 
-    if (typeof Tesseract !== "undefined" && Tesseract.recognize) {
-      Tesseract.recognize(imgData, "fra+eng", {
-        logger: function() {}
-      }).then(function(result) {
-        hideLoading();
-        var text = (result.data ? result.data.text : result.text || "").trim();
-        // Clean up: take first line that looks like a serial
-        var lines = text.split(/\n/).map(function(l) { return l.trim(); }).filter(function(l) { return l.length > 2; });
-        var best = lines[0] || text;
-        // Remove whitespace within serial
-        best = best.replace(/\s+/g, "");
-
-        document.getElementById("ocrResult").value = best;
-        document.getElementById("ocrModal").classList.remove("hidden");
-      }).catch(function(err) {
-        hideLoading();
-        showToast("Erreur OCR: " + err.message, "error");
-      });
-    } else {
+    fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": localStorage.getItem("rtm_anthropic_key") || "",
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 200,
+        messages: [{
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: { type: "base64", media_type: mediaType, data: base64 }
+            },
+            {
+              type: "text",
+              text: "Lis le numéro de série sur cette étiquette d'équipement médical. Retourne UNIQUEMENT le numéro de série, rien d'autre. Pas d'explication, juste le numéro. S'il y a plusieurs numéros, retourne celui qui ressemble le plus à un numéro de série (format: chiffres, tirets, lettres)."
+            }
+          ]
+        }]
+      })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(resp) {
       hideLoading();
-      showToast("Tesseract.js non chargé. Vérifiez votre connexion.", "error");
-    }
+      var text = "";
+      if (resp.content && resp.content[0]) {
+        text = resp.content[0].text || "";
+      }
+      text = text.trim().replace(/\s+/g, "");
+      document.getElementById("ocrResult").value = text;
+      document.getElementById("ocrModal").classList.remove("hidden");
+    })
+    .catch(function(err) {
+      hideLoading();
+      showToast("Erreur analyse: " + err.message, "error");
+    });
   };
   reader.readAsDataURL(file);
 });
