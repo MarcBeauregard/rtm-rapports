@@ -1558,6 +1558,30 @@ function renderResumeTc() {
   return html;
 }
 
+/* ===== UPLOAD PHOTO TO R2 ===== */
+function uploadPhotoToR2(fileOrDataUrl) {
+  return new Promise(function(resolve, reject) {
+    var fd = new FormData();
+    if (fileOrDataUrl instanceof File) {
+      fd.append("file", fileOrDataUrl, "photo_" + Date.now() + ".jpg");
+    } else if (typeof fileOrDataUrl === "string" && fileOrDataUrl.startsWith("data:")) {
+      var parts = fileOrDataUrl.split(",");
+      var mime = parts[0].match(/:(.*?);/)[1];
+      var bin = atob(parts[1]);
+      var arr = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      var blob = new Blob([arr], {type: mime});
+      fd.append("file", blob, "photo_" + Date.now() + ".jpg");
+    } else {
+      return resolve(null);
+    }
+    fetch("https://rtm-pdf-upload.marc-beauregard.workers.dev/upload", {method:"POST", body:fd})
+    .then(function(r) { return r.json(); })
+    .then(function(resp) { resolve(resp.url || null); })
+    .catch(function() { resolve(null); });
+  });
+}
+
 /* ===== OCR ===== */
 var ocrTargetField = "";
 
@@ -1573,6 +1597,9 @@ document.getElementById("ocrFileInput").addEventListener("change", function(e) {
   if (!file) return;
 
   showLoading("Analyse de la photo en cours...");
+
+  /* Save the raw file for later upload to Airtable */
+  state.formData._ocrPhotoFile = file;
 
   var reader = new FileReader();
   reader.onload = function(ev) {
@@ -1709,13 +1736,20 @@ function submitEntretien() {
     fields["PIECES"] = d.pieces.map(function(p) { return p.id; });
   }
 
-  // Photo: Airtable attachments need public URLs
-  // If we have photo data, we try to include it
-  if (d.photoData) {
-    fields["Photo"] = [{ url: d.photoData }];
-  }
+  // Upload photos to R2 then attach to Airtable
+  var photoPromises = [];
+  if (d.photoData) photoPromises.push(uploadPhotoToR2(d.photoData));
+  else photoPromises.push(Promise.resolve(null));
+  if (d._ocrPhotoFile) photoPromises.push(uploadPhotoToR2(d._ocrPhotoFile));
+  else photoPromises.push(Promise.resolve(null));
 
-  airtableCreate("Entretien", fields).then(function(result) {
+  Promise.all(photoPromises).then(function(urls) {
+    var attachments = [];
+    if (urls[0]) attachments.push({url: urls[0]});
+    if (urls[1]) attachments.push({url: urls[1]});
+    if (attachments.length > 0) fields["Photo"] = attachments;
+    return airtableCreate("Entretien", fields);
+  }).then(function(result) {
     hideLoading();
     if (navigator.vibrate) navigator.vibrate(100);
     showToast("✓ Entretien enregistré avec succès !", "success");
@@ -1756,11 +1790,20 @@ function submitTestCharge() {
 
   if (d.tc_commentaire) fields["Commentaire tech"] = d.tc_commentaire;
 
-  if (d.tc_photoData) {
-    fields["Photo"] = [{ url: d.tc_photoData }];
-  }
+  // Upload photos to R2 then attach
+  var tcPhotoPromises = [];
+  if (d.tc_photoData) tcPhotoPromises.push(uploadPhotoToR2(d.tc_photoData));
+  else tcPhotoPromises.push(Promise.resolve(null));
+  if (d._ocrPhotoFile) tcPhotoPromises.push(uploadPhotoToR2(d._ocrPhotoFile));
+  else tcPhotoPromises.push(Promise.resolve(null));
 
-  airtableCreate("Test de charge", fields).then(function(result) {
+  Promise.all(tcPhotoPromises).then(function(urls) {
+    var attachments = [];
+    if (urls[0]) attachments.push({url: urls[0]});
+    if (urls[1]) attachments.push({url: urls[1]});
+    if (attachments.length > 0) fields["Photo"] = attachments;
+    return airtableCreate("Test de charge", fields);
+  }).then(function(result) {
     hideLoading();
     if (navigator.vibrate) navigator.vibrate(100);
     showToast("✓ Test de charge enregistré avec succès !", "success");
