@@ -718,7 +718,7 @@ function generatePDF(data) {
   ];
   var rightLabels = ["NO. GBM", "NO. DE S\u00c9RIE", "MARQUE", "DATE"];
   var rightValues = [
-    isRailEquip ? (ef["NUMERO GBM"] || "—") : (ef["NUMERO GBM"] || ef["No GBM"] || ef["GBM"] || "—"),
+    (function() { var g = ef["NUMERO GBM"] || ef["No GBM"] || ef["GBM"] || "—"; return Array.isArray(g) ? (g[0] || "—") : g; })(),
     ef["Numéro de série"] || ef["No de serie"] || "—",
     isRailEquip ? "—" : (mf["Marque"] || "—"),
     dateStr
