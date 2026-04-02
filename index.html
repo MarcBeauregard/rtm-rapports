@@ -355,11 +355,14 @@ function startGeneration() {
     data.modele = results[1];
     data.etablissement = results[2];
 
-    /* Sort entretiens chronologically by Name ascending */
+    /* Sort entretiens chronologically — by date then by Name (numeric) */
     entretiens.sort(function(a, b) {
-      var na = (a.fields["Name"] || a.fields["Nom"] || "").toString();
-      var nb = (b.fields["Name"] || b.fields["Nom"] || "").toString();
-      return na.localeCompare(nb);
+      var da = a.fields["Date reelle"] || a.fields["Date de création"] || a.fields["Date"] || "";
+      var db = b.fields["Date reelle"] || b.fields["Date de création"] || b.fields["Date"] || "";
+      if (da !== db) return da < db ? -1 : da > db ? 1 : 0;
+      var na = parseInt(a.fields["Name"] || "0", 10);
+      var nb = parseInt(b.fields["Name"] || "0", 10);
+      return na - nb;
     });
     data.entretiens = entretiens;
     data.lastEntretien = entretiens.length > 0 ? entretiens[entretiens.length - 1] : null;
@@ -709,7 +712,7 @@ function generatePDF(data) {
   var leftLabels = ["\u00c9TABLISSEMENT", "LOCALISATION", "TYPE", "MOD\u00c8LE"];
   var leftValues = [
     etf["Etab"] || etf["Nom"] || "—",
-    isRailEquip ? (ef["Localisation 2024"] || "—") : (lef["Localisation"] || lef["Localisation ent"] || ef["Localisation 2024"] || "—"),
+    isRailEquip ? (ef["Localisation 2024"] || "—") : (function() { var le = ef["LOCAL ENTRETIEN"]; return (Array.isArray(le) && le.length > 0) ? le[le.length - 1] : (lef["Localisation"] || lef["Localisation ent"] || ef["Localisation 2024"] || "—"); })(),
     isRailEquip ? "Rail" : (mf["Type"] || lef["type"] || "—"),
     isRailEquip ? "—" : (mf["Modele"] || mf["Mod\u00e8le"] || "—")
   ];
