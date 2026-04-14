@@ -625,6 +625,16 @@
     </div>
 
     <div class="step" id="step-7">
+      <div class="step-q">Taille</div>
+      <div class="step-hint">Sélectionnez la taille indiquée sur la toile</div>
+      <div class="choice-grid" id="taille-grid"></div>
+      <div class="custom-input-wrap" id="taille-custom">
+        <input class="field" id="taille-custom-input" type="text" placeholder="Précisez la taille" inputmode="text">
+        <button class="btn-confirm" onclick="confirmCustom('taille')">OK</button>
+      </div>
+    </div>
+
+    <div class="step" id="step-8">
       <div class="step-q">Statut de la toile</div>
       <div class="step-hint">La toile passe-t-elle l'inspection ?</div>
       <div class="status-grid">
@@ -633,7 +643,7 @@
       </div>
     </div>
 
-    <div class="step" id="step-8">
+    <div class="step" id="step-9">
       <div class="step-q">Points non conformes</div>
       <div class="step-hint">Cochez tout ce qui s'applique</div>
       <div class="checklist">
@@ -653,7 +663,7 @@
       </div>
     </div>
 
-    <div class="step" id="step-9">
+    <div class="step" id="step-10">
       <div class="step-q">Notes additionnelles</div>
       <div class="step-hint">Optionnel — tout commentaire pertinent</div>
       <textarea class="field" id="f-notes" rows="5" placeholder="Ex : Remplacement prévu prochainement…"></textarea>
@@ -792,7 +802,8 @@
   const API_BASE        = 'https://rtm-airtable-proxy.marc-beauregard.workers.dev';
   const PHOTOS_FIELD_ID = 'fldiywgyw1vZgtIoB';
   const DEFAULT_TYPES   = ['Salle de bain', 'Double cuissarde'];
-  const LAST_STEP       = 9;
+  const DEFAULT_TAILLES = ['S', 'M', 'L', 'XL', 'XXL'];
+  const LAST_STEP       = 10;
 
   // ─── STATE ──────────────────────────────────────────────
   let step = 1, sessionStartStep = 1;
@@ -804,7 +815,7 @@
   let pendingFile = null, pendingDataUrl = null;
 
   function freshData() {
-    return { num:'', loc:'', marque:'', type:'', statut:'', issues:[], notes:'' };
+    return { num:'', loc:'', marque:'', type:'', taille:'', statut:'', issues:[], notes:'' };
   }
 
   // ─── LOCALSTORAGE ───────────────────────────────────────
@@ -1138,7 +1149,7 @@
       card.className = 'toile-card';
       card.onclick = () => { closeHistory(); startEdit(realIdx); };
       const ok  = entry.statut === 'Conforme';
-      const sub = [entry.loc, entry.marque, entry.type].filter(Boolean).join(' · ');
+      const sub = [entry.loc, entry.marque, entry.type, entry.taille].filter(Boolean).join(' · ');
       const photoInfo = entry.photoCount > 0 ? ` · ${entry.photoCount} photo${entry.photoCount>1?'s':''}` : '';
       card.innerHTML = `
         <div class="toile-card-left">
@@ -1156,6 +1167,7 @@
     editingIdx = idx;
     const entry = submitted[idx];
     d = { num:entry.num, loc:entry.loc, marque:entry.marque, type:entry.type,
+          taille:entry.taille || '',
           statut:entry.statut, issues:[...entry.issues], notes:entry.notes };
     photos = [];
     refreshPhotoUI();
@@ -1164,7 +1176,7 @@
     document.getElementById('f-notes').value = d.notes;
     resetChecklistUI();
     d.issues.forEach(val => {
-      const item = [...document.querySelectorAll('#step-8 .check-item[data-val]')].find(el => el.dataset.val === val);
+      const item = [...document.querySelectorAll('#step-9 .check-item[data-val]')].find(el => el.dataset.val === val);
       if (item) item.classList.add('on');
     });
     document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('dim'));
@@ -1207,6 +1219,7 @@
     if (n === 4) renderLocSuggestions();
     if (n === 5) buildChoiceGrid('marque');
     if (n === 6) buildChoiceGrid('type');
+    if (n === 7) buildChoiceGrid('taille');
     clearError();
     updateProgress(); updateHeader(); updatePhotoBar();
     const inp = document.getElementById('step-'+n).querySelector('input:not([id$="-custom-input"]), textarea');
@@ -1226,7 +1239,9 @@
   function buildChoiceGrid(field) {
     const grid     = document.getElementById(field+'-grid');
     const custom   = getCustom(field);
-    const defaults = field === 'type' ? DEFAULT_TYPES : [];
+    const defaults = field === 'type'   ? DEFAULT_TYPES
+                   : field === 'taille' ? DEFAULT_TAILLES
+                   : [];
     const defaultsLC = defaults.map(x => x.toLowerCase());
     const all = [...defaults, ...custom.filter(c => !defaultsLC.includes(c.toLowerCase()))];
     grid.innerHTML = '';
@@ -1317,9 +1332,10 @@
       case 4: return null;
       case 5: return d.marque === '' ? 'Choisis une marque ou ajoute-en une nouvelle.' : null;
       case 6: return d.type   === '' ? 'Choisis un type ou ajoute-en un nouveau.' : null;
-      case 7: return d.statut === '' ? 'Indique si la toile est conforme ou non.' : null;
-      case 8: return d.issues.length === 0 ? 'Coche au moins un point non conforme (ou retourne en arri\u00e8re pour changer le statut).' : null;
-      case 9: return null;
+      case 7: return d.taille === '' ? 'Choisis une taille ou pr\u00e9cise-la avec \u00ab Autre \u00bb.' : null;
+      case 8: return d.statut === '' ? 'Indique si la toile est conforme ou non.' : null;
+      case 9: return d.issues.length === 0 ? 'Coche au moins un point non conforme (ou retourne en arri\u00e8re pour changer le statut).' : null;
+      case 10: return null;
       default: return null;
     }
   }
@@ -1343,15 +1359,15 @@
       d.loc = raw === 'Inconnu' ? 'Inconnu' : normalizeLoc(raw);
       document.getElementById('f-loc').value = d.loc;
     }
-    if (step===9) d.notes = document.getElementById('f-notes').value.trim();
+    if (step===10) d.notes = document.getElementById('f-notes').value.trim();
     if (step===LAST_STEP) { submit(); return; }
     let nx = step + 1;
-    if (nx===8 && d.statut==='Conforme') nx = 9;
+    if (nx===9 && d.statut==='Conforme') nx = 10;
     step = nx; showStep(step);
   }
   function back() {
     let pv = step - 1;
-    if (pv===8 && d.statut==='Conforme') pv = 7;
+    if (pv===9 && d.statut==='Conforme') pv = 8;
     step = pv; showStep(step);
   }
   function pickStatus(val) {
@@ -1375,7 +1391,7 @@
   function confirmAutreCheck() {
     const input = document.getElementById('autre-check-input');
     const val = input.value.trim(); if (!val) return;
-    const checklist = document.querySelector('#step-8 .checklist');
+    const checklist = document.querySelector('#step-9 .checklist');
     const newItem = document.createElement('div');
     newItem.className = 'check-item on'; newItem.dataset.val = val; newItem.dataset.custom = 'true';
     newItem.onclick = function(){ toggleCheck(this); };
@@ -1385,8 +1401,8 @@
     input.value = ''; document.getElementById('autre-check-wrap').style.display = 'none';
   }
   function resetChecklistUI() {
-    document.querySelectorAll('#step-8 .check-item[data-custom]').forEach(el=>el.remove());
-    document.querySelectorAll('#step-8 .check-item').forEach(b=>b.classList.remove('on'));
+    document.querySelectorAll('#step-9 .check-item[data-custom]').forEach(el=>el.remove());
+    document.querySelectorAll('#step-9 .check-item').forEach(b=>b.classList.remove('on'));
     document.getElementById('autre-check-wrap').style.display = 'none';
     document.getElementById('autre-check-input').value = '';
   }
@@ -1405,6 +1421,7 @@
       'Technicien':       session.tech,
       'Établissement':    session.etab,
     };
+    if (d.taille) fields['Taille'] = d.taille;
     if (d.loc)   fields['Localisation'] = d.loc;
     if (d.statut==='Non conforme' && d.issues.length) fields['Points de non-conformité'] = d.issues;
     if (d.notes) fields['Notes'] = d.notes;
@@ -1418,7 +1435,7 @@
     // Helper qui finalise la sauvegarde locale + écran de succès
     const finalizeSuccess = (recId, queued = false) => {
       const entry = { recordId: recId, num:d.num, loc:d.loc, marque:d.marque,
-                      type:d.type, statut:d.statut, issues:[...d.issues], notes:d.notes,
+                      type:d.type, taille:d.taille, statut:d.statut, issues:[...d.issues], notes:d.notes,
                       photoCount: photos.length };
       if (isEdit) submitted[editingIdx] = entry; else submitted.push(entry);
       updateCounter();
@@ -1606,12 +1623,13 @@
     // ── Tableau toiles ──
     doc.autoTable({
       startY: y,
-      head: [['N° Toile', 'Localisation', 'Marque', 'Type', 'Statut', 'Points non-conformes']],
+      head: [['N° Toile', 'Localisation', 'Marque', 'Type', 'Taille', 'Statut', 'Points non-conformes']],
       body: submitted.map(t => [
         t.num  || '—',
         t.loc  || '—',
         t.marque || '—',
         t.type || '—',
+        t.taille || '—',
         t.statut,
         t.issues.length > 0 ? t.issues.join(', ') : '—'
       ]),
@@ -1622,15 +1640,16 @@
       bodyStyles: { fontSize: 7.5, textColor: dark, cellPadding: 2.5 },
       alternateRowStyles: { fillColor: bg },
       columnStyles: {
-        0: { cellWidth: 22 },
-        1: { cellWidth: 32 },
-        2: { cellWidth: 24 },
-        3: { cellWidth: 27 },
-        4: { cellWidth: 26 },
-        5: { cellWidth: 'auto' },
+        0: { cellWidth: 20 },
+        1: { cellWidth: 30 },
+        2: { cellWidth: 22 },
+        3: { cellWidth: 24 },
+        4: { cellWidth: 14, halign: 'center' },
+        5: { cellWidth: 24 },
+        6: { cellWidth: 'auto' },
       },
       didParseCell: (data) => {
-        if (data.column.index === 4 && data.section === 'body') {
+        if (data.column.index === 5 && data.section === 'body') {
           data.cell.styles.fontStyle = 'bold';
           data.cell.styles.textColor = data.cell.raw === 'Non conforme' ? red : green;
         }
@@ -1673,7 +1692,7 @@
         doc.text(`Toile ${t.num || '—'}${t.loc ? '  —  ' + t.loc : ''}`, 17, cy);
         cy += 5;
         doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...muted);
-        doc.text(`Type : ${t.type || '—'}   ·   Marque : ${t.marque || '—'}`, 17, cy);
+        doc.text(`Type : ${t.type || '—'}   ·   Taille : ${t.taille || '—'}   ·   Marque : ${t.marque || '—'}`, 17, cy);
         cy += 5;
         doc.setTextColor(...red);
         doc.text(issLines, 17, cy);
