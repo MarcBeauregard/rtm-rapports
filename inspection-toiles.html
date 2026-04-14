@@ -812,6 +812,10 @@
     const a = getCustom(k);
     if (!a.map(s=>s.toLowerCase()).includes(v.toLowerCase())) { a.push(v); saveCustom(k,a); }
   }
+  function removeCustomEntry(k, v) {
+    const a = getCustom(k).filter(x => x.toLowerCase() !== v.toLowerCase());
+    saveCustom(k, a);
+  }
 
   // ─── TOAST ─────────────────────────────────────────────
   let toastTimer = null;
@@ -1221,19 +1225,63 @@
     const grid     = document.getElementById(field+'-grid');
     const custom   = getCustom(field);
     const defaults = field === 'type' ? DEFAULT_TYPES : [];
-    const all = [...defaults, ...custom.filter(c => !defaults.map(x=>x.toLowerCase()).includes(c.toLowerCase()))];
+    const defaultsLC = defaults.map(x => x.toLowerCase());
+    const all = [...defaults, ...custom.filter(c => !defaultsLC.includes(c.toLowerCase()))];
     grid.innerHTML = '';
     all.forEach(val => {
       const btn = document.createElement('div');
       btn.className = 'choice-btn' + (d[field]===val?' selected':'');
       btn.dataset.val = val; btn.textContent = val;
       btn.onclick = () => pickChoice(field, val, btn);
+      // Appui long pour supprimer (uniquement les entrées custom, pas les défauts)
+      const isRemovable = !defaultsLC.includes(val.toLowerCase());
+      if (isRemovable) attachLongPressDelete(btn, field, val);
       grid.appendChild(btn);
     });
     const addBtn = document.createElement('div');
     addBtn.className = 'choice-btn add-btn'; addBtn.textContent = '+ Autre…';
     addBtn.onclick = () => showCustomInput(field);
     grid.appendChild(addBtn);
+
+    // Hint affiché une seule fois quand il y a des entrées custom supprimables
+    if (all.some(v => !defaultsLC.includes(v.toLowerCase())) && !localStorage.getItem('rtm_longpressHintSeen')) {
+      showToast('Astuce : appui long sur une entrée pour la supprimer.', 5500);
+      localStorage.setItem('rtm_longpressHintSeen', '1');
+    }
+  }
+
+  // Attache un handler d'appui long (~600ms) qui propose la suppression de l'entrée.
+  // Annule le clic court qui suivrait, pour ne pas re-sélectionner l'entrée qu'on vient de supprimer.
+  function attachLongPressDelete(el, field, val) {
+    let timer = null, fired = false, startX = 0, startY = 0;
+    const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
+    el.addEventListener('pointerdown', (e) => {
+      fired = false;
+      startX = e.clientX; startY = e.clientY;
+      timer = setTimeout(() => {
+        fired = true;
+        if (navigator.vibrate) navigator.vibrate(40);
+        if (confirm(`Supprimer « ${val} » de la liste ?`)) {
+          removeCustomEntry(field, val);
+          // Si la valeur supprimée était sélectionnée, on la déselectionne
+          if (d[field] === val) d[field] = '';
+          buildChoiceGrid(field);
+        }
+      }, 600);
+    });
+    el.addEventListener('pointerup',    cancel);
+    el.addEventListener('pointerleave', cancel);
+    el.addEventListener('pointercancel',cancel);
+    el.addEventListener('pointermove',  (e) => {
+      // Si le doigt bouge de plus de 10px, on annule (c'est un scroll, pas un appui)
+      if (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10) cancel();
+    });
+    // Empêche le click court de se déclencher après un appui long
+    el.addEventListener('click', (e) => {
+      if (fired) { e.preventDefault(); e.stopImmediatePropagation(); fired = false; }
+    }, true);
+    // Empêche le menu contextuel iOS qui sort sur appui long
+    el.addEventListener('contextmenu', (e) => e.preventDefault());
   }
   function pickChoice(field, val, el) {
     d[field] = val;
