@@ -832,6 +832,41 @@
     saveCustom(k, a);
   }
 
+  // ─── SESSION PERSISTANCE (anti-perte de données) ────────
+  // Sauvegarde auto de la session en cours (tech + etab + toiles soumises)
+  // pour qu'un technicien qui ferme l'app (ou que le téléphone se recharge,
+  // que le navigateur plante, etc.) puisse reprendre exactement où il était.
+  // Clé unique ; on ne garde qu'une session active à la fois, et on la purge
+  // si la date change (nouvelle journée de travail = nouvelle session).
+  const SESSION_KEY = 'rtm_active_session';
+  function todayStr() { return new Date().toISOString().split('T')[0]; }
+  function saveSession() {
+    if (!session.tech && !session.etab && submitted.length === 0) {
+      localStorage.removeItem(SESSION_KEY);
+      return;
+    }
+    try {
+      localStorage.setItem(SESSION_KEY, JSON.stringify({
+        date: todayStr(),
+        tech: session.tech,
+        etab: session.etab,
+        submitted: submitted,
+        savedAt: Date.now(),
+      }));
+    } catch (e) { console.warn('Impossible de sauvegarder la session :', e); }
+  }
+  function loadSession() {
+    try {
+      const raw = localStorage.getItem(SESSION_KEY);
+      if (!raw) return null;
+      const s = JSON.parse(raw);
+      // Si la session est d'une autre journée, on ne la restaure pas.
+      if (s.date !== todayStr()) { localStorage.removeItem(SESSION_KEY); return null; }
+      return s;
+    } catch { return null; }
+  }
+  function clearSession() { localStorage.removeItem(SESSION_KEY); }
+
   // ─── TOAST ─────────────────────────────────────────────
   let toastTimer = null;
   function showToast(msg, ms = 4500) {
@@ -1350,10 +1385,11 @@
       return;
     }
     clearError();
-    if (step===1) session.tech = document.getElementById('f-tech').value.trim();
+    if (step===1) { session.tech = document.getElementById('f-tech').value.trim(); saveSession(); }
     if (step===2) {
       session.etab = document.getElementById('f-etab').value.trim();
       sessionStartStep = 3;
+      saveSession();
     }
     if (step===3) d.num   = document.getElementById('f-num').value.trim();
     if (step===4) {
@@ -1440,6 +1476,7 @@
                       type:d.type, taille:d.taille, statut:d.statut, issues:[...d.issues], notes:d.notes,
                       photoCount: photos.length };
       if (isEdit) submitted[editingIdx] = entry; else submitted.push(entry);
+      saveSession();
       updateCounter();
       editingIdx = null;
       document.getElementById('editBanner').classList.remove('show');
@@ -1524,6 +1561,7 @@
 
   // ─── RESET SESSION ──────────────────────────────────────
   function resetSession() {
+    clearSession();
     session = { tech:'', etab:'' }; sessionStartStep = 1;
     d = freshData(); step = 1; submitted = []; editingIdx = null; photos = [];
     document.querySelectorAll('.choice-btn').forEach(b=>b.classList.remove('selected'));
@@ -1824,7 +1862,35 @@
   });
 
   // ─── INIT ───────────────────────────────────────────────
-  showStep(1);
+  // Restauration auto de la session en cours (mêmes tech + etab + toiles
+  // soumises du jour) si le technicien a fermé/rouvert l'app pendant sa journée.
+  (function restoreSession() {
+    const s = loadSession();
+    if (!s) { showStep(1); return; }
+    session.tech = s.tech || '';
+    session.etab = s.etab || '';
+    submitted    = Array.isArray(s.submitted) ? s.submitted : [];
+    if (session.tech && session.etab) {
+      sessionStartStep = 3;
+      step = 3;
+      document.getElementById('f-tech').value = session.tech;
+      document.getElementById('f-etab').value = session.etab;
+      updateCounter();
+      updateHeader();
+      if (submitted.length > 0) {
+        showToast(`Session reprise — ${submitted.length} toile${submitted.length>1?'s':''} déjà enregistrée${submitted.length>1?'s':''} aujourd'hui.`, 6000);
+      } else {
+        showToast(`Session reprise — ${session.tech} · ${session.etab}`, 4000);
+      }
+      showStep(3);
+    } else if (session.tech) {
+      step = 2;
+      document.getElementById('f-tech').value = session.tech;
+      showStep(2);
+    } else {
+      showStep(1);
+    }
+  })();
   updateOfflineBanner();
   // Tenter de vider la file dès le chargement (au cas où on aurait fermé hors ligne)
   if (navigator.onLine) flushQueue();
