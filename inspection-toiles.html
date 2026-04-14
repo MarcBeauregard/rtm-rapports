@@ -360,6 +360,20 @@
     .toile-tag.nok { background: var(--danger-light);  color: var(--danger); }
     .toile-card-arrow { color: var(--text-muted); font-size: 16px; flex-shrink: 0; }
 
+    /* ─── QUICK PICK ─── */
+    .quick-picks { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+    .quick-pick {
+      padding: 9px 18px;
+      border: 2px solid var(--border);
+      border-radius: 50px;
+      background: var(--bg);
+      color: var(--text-muted);
+      font-size: 14px; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+      transition: all .15s;
+    }
+    .quick-pick:active { background: var(--cyan-light); border-color: var(--navy); color: var(--navy); }
+
     /* ─── SHAKE ─── */
     @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-6px)} 40%,80%{transform:translateX(6px)} }
     .shake { animation: shake .35s ease; }
@@ -438,6 +452,9 @@
       <div class="step-q">Localisation</div>
       <div class="step-hint">Chambre, salle ou emplacement précis</div>
       <input class="field" id="f-loc" type="text" placeholder="Ex : Chambre 214, Salle de bain A" autocomplete="off" inputmode="text">
+      <div class="quick-picks">
+        <button class="quick-pick" onclick="pickLoc('Inconnu')">Inconnu</button>
+      </div>
     </div>
 
     <div class="step" id="step-5">
@@ -986,6 +1003,13 @@
     document.getElementById('editBanner').classList.remove('show');
     document.getElementById('btnNext').disabled = false;
     updateCounter(); refreshPhotoUI(); showFormUI(); showStep(1);
+  }
+
+  // ─── QUICK PICK LOCALISATION ────────────────────────────
+  function pickLoc(val) {
+    document.getElementById('f-loc').value = val;
+    d.loc = val;
+    step = 5; showStep(step);
   }
 
   // ─── ENTER KEY ──────────────────────────────────────────
