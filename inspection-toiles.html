@@ -647,12 +647,14 @@
       <div class="step-q">Points non conformes</div>
       <div class="step-hint">Cochez tout ce qui s'applique</div>
       <div class="checklist">
-        <div class="check-item" data-val="Modèle visible"                onclick="toggleCheck(this)"><div class="check-box">✓</div>Modèle visible</div>
-        <div class="check-item" data-val="Taille visible"                onclick="toggleCheck(this)"><div class="check-box">✓</div>Taille visible</div>
-        <div class="check-item" data-val="Absence de trou et déchirures" onclick="toggleCheck(this)"><div class="check-box">✓</div>Absence de trou et déchirures</div>
-        <div class="check-item" data-val="Absence effilochage"           onclick="toggleCheck(this)"><div class="check-box">✓</div>Absence effilochage</div>
-        <div class="check-item" data-val="Absence de relâchement"        onclick="toggleCheck(this)"><div class="check-box">✓</div>Absence de relâchement</div>
-        <div class="check-item" data-val="Absence décoloration"          onclick="toggleCheck(this)"><div class="check-box">✓</div>Absence décoloration</div>
+        <div class="check-item" data-val="Modèle illisible ou effacé"           onclick="toggleCheck(this)"><div class="check-box">✓</div>Modèle illisible ou effacé</div>
+        <div class="check-item" data-val="Taille illisible ou effacée"          onclick="toggleCheck(this)"><div class="check-box">✓</div>Taille illisible ou effacée</div>
+        <div class="check-item" data-val="Trou ou déchirure"                    onclick="toggleCheck(this)"><div class="check-box">✓</div>Trou ou déchirure</div>
+        <div class="check-item" data-val="Effilochage"                          onclick="toggleCheck(this)"><div class="check-box">✓</div>Effilochage</div>
+        <div class="check-item" data-val="Relâchement du tissu ou des coutures" onclick="toggleCheck(this)"><div class="check-box">✓</div>Relâchement du tissu ou des coutures</div>
+        <div class="check-item" data-val="Décoloration importante"              onclick="toggleCheck(this)"><div class="check-box">✓</div>Décoloration importante</div>
+        <div class="check-item" data-val="Sangles ou boucles abîmées"           onclick="toggleCheck(this)"><div class="check-box">✓</div>Sangles ou boucles abîmées</div>
+        <div class="check-item" data-val="Toile souillée (non nettoyable)"      onclick="toggleCheck(this)"><div class="check-box">✓</div>Toile souillée (non nettoyable)</div>
         <div class="check-item add-btn" id="autre-check-btn" onclick="showAutreCheck()" style="border-style:dashed; color:var(--text-muted); font-weight:500;">
           <div class="check-box" style="border-style:dashed; color:transparent;"></div>Autre…
         </div>
@@ -1677,7 +1679,7 @@
         const rec      = getGuldmann(t.type);
         const issLines = doc.splitTextToSize(`Points non-conformes : ${issues}`, W - 42);
         const recLines = doc.splitTextToSize(`Remplacement suggéré : ${rec}`, W - 42);
-        const repLines = doc.splitTextToSize(`Représentant Guldmann : ${GULDMANN_REP}`, W - 42);
+        const repLines = doc.splitTextToSize(`Demande de soumission : ${GULDMANN_REP}`, W - 42);
         const cardH    = 8 + issLines.length * 4.2 + recLines.length * 4.2 + repLines.length * 4 + 12;
 
         if (y + cardH > H - 22) { doc.addPage(); y = 20; }
@@ -1773,9 +1775,14 @@
     // ── Chemin 1 : Web Share API avec pièce jointe (iPhone Safari, Android Chrome) ──
     // Le PDF est attaché automatiquement à la feuille de partage iOS, l'utilisateur
     // choisit Mail (ou autre), et le PDF est déjà dans le brouillon.
+    // iOS ne permet pas de pré-remplir Cc/Cci via Web Share — on affiche un en-tête
+    // clair pour que le technicien copie-colle les adresses en Cc dans Mail.
     if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
       try {
-        const shareText = (clientEmail ? `À : ${clientEmail}\nCC : service@rtmmedical.com\n\n` : `CC : service@rtmmedical.com\n\n`) + bodyTxt;
+        const header =
+          (clientEmail ? `À : ${clientEmail}\n` : '') +
+          `Cc : service@rtmmedical.com, christophe.raynal@rtmmedical.com\n\n`;
+        const shareText = header + bodyTxt;
         await navigator.share({
           files: [pdfFile],
           title: subject,
@@ -1792,7 +1799,7 @@
     // ── Chemin 2 (fallback) : téléchargement + mailto (desktop, vieux navigateurs) ──
     doc.save(filename);
     const to  = clientEmail ? encodeURIComponent(clientEmail) : '';
-    const cc  = encodeURIComponent('service@rtmmedical.com');
+    const cc  = encodeURIComponent('service@rtmmedical.com,christophe.raynal@rtmmedical.com');
     const mailtoBody = bodyTxt + `\n\n⚠️ Le PDF a été téléchargé dans tes téléchargements. Attache-le manuellement à ce courriel avant d'envoyer.\n`;
     setTimeout(() => {
       window.location.href = `mailto:${to}?cc=${cc}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(mailtoBody)}`;
