@@ -754,7 +754,7 @@
     <button class="btn-rapport-dl"   onclick="telechargerPDF()">Télécharger le PDF</button>
     <button class="btn-rapport-mail" onclick="envoyerCourriel()">Envoyer par courriel</button>
     <p style="font-size:11px; color:var(--text-muted); text-align:center; margin-top:12px; line-height:1.5;">
-      Le PDF sera téléchargé, puis ton application courriel s'ouvrira avec le destinataire et le sujet déjà remplis. Attache le PDF manuellement avant d'envoyer.
+      Sur iPhone/iPad : la feuille de partage s'ouvre avec le PDF déjà attaché — choisis Mail puis envoie. Sur ordinateur : le PDF se télécharge et le courriel s'ouvre, attache le PDF manuellement.
     </p>
   </div>
 </div>
@@ -1668,11 +1668,11 @@
     doc.save(`Rapport-RTM-${etabFn}-${dateFn}.pdf`);
   }
 
-  function envoyerCourriel() {
-    telechargerPDF();
+  async function envoyerCourriel() {
     const clientEmail = document.getElementById('clientEmail').value.trim();
     const now     = new Date();
     const dateStr = now.toLocaleDateString('fr-CA', { year:'numeric', month:'long', day:'numeric' });
+    const dateFn  = now.toISOString().split('T')[0];
     const total   = submitted.length;
     const conf    = submitted.filter(t => t.statut === 'Conforme').length;
     const nc      = total - conf;
@@ -1681,20 +1681,48 @@
       .map(t => `  • Toile ${t.num||'—'}${t.loc?' ('+t.loc+')':''} : ${t.issues.join(', ')||'—'}`)
       .join('\n');
 
-    const subject = encodeURIComponent(`Rapport d'inspection de toiles — ${session.etab} — ${dateStr}`);
+    const subject = `Rapport d'inspection de toiles — ${session.etab} — ${dateStr}`;
     const bodyTxt =
       `Bonjour,\n\n` +
       `Veuillez trouver en pièce jointe le rapport d'inspection de toiles effectué le ${dateStr} par ${session.tech}.\n\n` +
       `Établissement : ${session.etab}\n` +
       `Toiles inspectées : ${total}   ·   Conformes : ${conf}   ·   Non conformes : ${nc}\n` +
       (nc > 0 ? `\nToiles non conformes :\n${ncLines}\n` : '') +
-      `\n⚠️ Pensez à attacher le fichier PDF téléchargé à ce courriel.\n\n` +
-      `Cordialement,\n${session.tech}\nRTM Médical`;
+      `\nCordialement,\n${session.tech}\nRTM Médical`;
 
+    // Construit le PDF + File (réutilisé par les deux chemins)
+    const doc      = buildPDF();
+    const etabFn   = session.etab.replace(/[^a-zA-Z0-9\-]/g, '-').substring(0, 30);
+    const filename = `Rapport-RTM-${etabFn}-${dateFn}.pdf`;
+    const pdfBlob  = doc.output('blob');
+    const pdfFile  = new File([pdfBlob], filename, { type: 'application/pdf' });
+
+    // ── Chemin 1 : Web Share API avec pièce jointe (iPhone Safari, Android Chrome) ──
+    // Le PDF est attaché automatiquement à la feuille de partage iOS, l'utilisateur
+    // choisit Mail (ou autre), et le PDF est déjà dans le brouillon.
+    if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+      try {
+        const shareText = (clientEmail ? `À : ${clientEmail}\nCC : service@rtmmedical.com\n\n` : `CC : service@rtmmedical.com\n\n`) + bodyTxt;
+        await navigator.share({
+          files: [pdfFile],
+          title: subject,
+          text:  shareText,
+        });
+        return; // partage réussi
+      } catch (err) {
+        if (err.name === 'AbortError') return; // l'utilisateur a annulé, ne rien faire
+        console.warn('Web Share a échoué, fallback mailto :', err);
+        // continue vers le fallback ci-dessous
+      }
+    }
+
+    // ── Chemin 2 (fallback) : téléchargement + mailto (desktop, vieux navigateurs) ──
+    doc.save(filename);
     const to  = clientEmail ? encodeURIComponent(clientEmail) : '';
     const cc  = encodeURIComponent('service@rtmmedical.com');
+    const mailtoBody = bodyTxt + `\n\n⚠️ Le PDF a été téléchargé dans tes téléchargements. Attache-le manuellement à ce courriel avant d'envoyer.\n`;
     setTimeout(() => {
-      window.location.href = `mailto:${to}?cc=${cc}&subject=${subject}&body=${encodeURIComponent(bodyTxt)}`;
+      window.location.href = `mailto:${to}?cc=${cc}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(mailtoBody)}`;
     }, 800);
   }
 
