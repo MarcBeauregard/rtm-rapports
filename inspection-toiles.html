@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Inspection Toiles — RTM Médical</title>
@@ -101,6 +101,88 @@
     /* ─── EDIT BANNER ─── */
     .edit-banner { display: none; background: var(--amber-light); border-bottom: 1px solid var(--amber); padding: 10px 20px; font-size: 13px; font-weight: 600; color: #92400e; text-align: center; }
     .edit-banner.show { display: block; }
+
+    /* ─── INLINE ERROR / OFFLINE BANNER / TOAST ─── */
+    .inline-error {
+      display: none;
+      background: var(--danger-light);
+      color: var(--danger);
+      border: 1px solid var(--danger);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 13.5px; font-weight: 600;
+      margin: 0 24px 8px;
+      animation: errIn .2s ease;
+    }
+    .inline-error.show { display: block; }
+    @keyframes errIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+
+    .offline-banner {
+      display: none;
+      background: var(--amber-light);
+      color: #92400e;
+      border-bottom: 1px solid var(--amber);
+      padding: 8px 16px;
+      font-size: 12.5px; font-weight: 600;
+      text-align: center;
+      gap: 6px;
+      align-items: center;
+      justify-content: center;
+    }
+    .offline-banner.show { display: flex; }
+    .offline-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--amber); flex-shrink: 0; animation: pulse 1.6s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { opacity: .4; } 50% { opacity: 1; } }
+
+    .toast {
+      position: fixed;
+      top: 14px; left: 50%;
+      transform: translateX(-50%) translateY(-80px);
+      background: var(--navy-dark);
+      color: white;
+      padding: 12px 18px;
+      border-radius: 12px;
+      font-size: 13.5px; font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0,0,0,.25);
+      max-width: 88%;
+      text-align: center;
+      z-index: 1000;
+      transition: transform .35s ease, opacity .35s ease;
+      opacity: 0;
+      pointer-events: none;
+      line-height: 1.45;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    .toast .arrow {
+      position: absolute; top: -7px; right: 28px;
+      width: 14px; height: 14px;
+      background: var(--navy-dark);
+      transform: rotate(45deg);
+    }
+
+    /* ─── QUICK PICKS (loc, etc.) ─── */
+    .quick-picks {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      margin-top: 14px;
+    }
+    .quick-pick {
+      padding: 8px 14px;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 50px;
+      font-size: 13.5px; font-weight: 600;
+      color: var(--navy);
+      cursor: pointer;
+      font-family: inherit;
+      transition: all .15s;
+    }
+    .quick-pick:active { background: var(--cyan-light); transform: scale(.96); }
+    .quick-pick.recent { background: var(--cyan-light); border-color: var(--cyan); }
+    .quick-picks-label {
+      font-size: 11px; font-weight: 700; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: .8px;
+      margin-top: 18px; margin-bottom: 4px;
+      width: 100%;
+    }
 
     /* ─── PROGRESS ─── */
     .progress-wrap { padding: 14px 24px 10px; border-bottom: 1px solid var(--border); }
@@ -475,11 +557,20 @@
   <!-- ═══ EDIT BANNER ═══ -->
   <div class="edit-banner" id="editBanner">Mode modification — toile <span id="editBannerNum"></span></div>
 
+  <!-- ═══ OFFLINE BANNER ═══ -->
+  <div class="offline-banner" id="offlineBanner">
+    <div class="offline-dot"></div>
+    <span id="offlineBannerText">Hors ligne — vos toiles seront envoyées dès le retour du réseau</span>
+  </div>
+
   <!-- ═══ PROGRESS ═══ -->
   <div class="progress-wrap" id="progressWrap">
     <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
     <div class="progress-label" id="progressLabel"></div>
   </div>
+
+  <!-- ═══ INLINE ERROR ═══ -->
+  <div class="inline-error" id="inlineError"></div>
 
   <!-- ═══ STEPS ═══ -->
   <div class="steps" id="stepsWrap">
@@ -505,10 +596,12 @@
     <div class="step" id="step-4">
       <div class="step-q">Localisation</div>
       <div class="step-hint">Chambre, salle ou emplacement précis</div>
-      <input class="field" id="f-loc" type="text" placeholder="Ex : Chambre 214, Salle de bain A" autocomplete="off" inputmode="text">
+      <input class="field" id="f-loc" type="text" placeholder="Ex : Chambre 214, Salle de bain A" autocomplete="off" inputmode="text" oninput="filterLocSuggestions()">
       <div class="quick-picks">
         <button class="quick-pick" onclick="pickLoc('Inconnu')">Inconnu</button>
       </div>
+      <div class="quick-picks-label" id="locRecentLabel" style="display:none">Récents pour cet établissement</div>
+      <div class="quick-picks" id="locRecentPicks"></div>
     </div>
 
     <div class="step" id="step-5">
@@ -677,6 +770,9 @@
   <div class="history-list" id="historyList"></div>
 </div>
 
+<!-- ═══ TOAST ═══ -->
+<div class="toast" id="toast"><div class="arrow"></div><span id="toastText"></span></div>
+
 <script>
   // ─── GULDMANN RECOMMENDATIONS ──────────────────────────
   // Personnaliser avec les vraies références produit Guldmann
@@ -689,9 +785,9 @@
   }
 
   // ─── CONFIG ─────────────────────────────────────────────
-  const TOKEN           = 'patOT24ntcbZ2HxEU.7fdc76b876a11838e605db35402d5b0d621780eb510d83da4d0e19f623616c30';
-  const BASE_ID         = 'app8cYe0jJtXa2ptZ';
-  const TABLE           = 'Toile';
+  // Toutes les requêtes Airtable passent désormais par ce Worker
+  // (le token Airtable n'est PLUS dans cette page).
+  const API_BASE        = 'https://rtm-airtable-proxy.marc-beauregard.workers.dev';
   const PHOTOS_FIELD_ID = 'fldiywgyw1vZgtIoB';
   const DEFAULT_TYPES   = ['Salle de bain', 'Double cuissarde'];
   const LAST_STEP       = 9;
@@ -717,14 +813,228 @@
     if (!a.map(s=>s.toLowerCase()).includes(v.toLowerCase())) { a.push(v); saveCustom(k,a); }
   }
 
+  // ─── TOAST ─────────────────────────────────────────────
+  let toastTimer = null;
+  function showToast(msg, ms = 4500) {
+    const t = document.getElementById('toast');
+    document.getElementById('toastText').textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), ms);
+  }
+
+  // ─── INLINE ERROR ──────────────────────────────────────
+  function showError(msg) {
+    const el = document.getElementById('inlineError');
+    el.textContent = msg;
+    el.classList.add('show');
+  }
+  function clearError() {
+    document.getElementById('inlineError').classList.remove('show');
+  }
+
+  // ─── NORMALIZE LOC ─────────────────────────────────────
+  function normalizeLoc(raw) {
+    if (!raw) return '';
+    let s = raw.trim().replace(/\s+/g, ' ');
+    // Standardise "ch." / "ch " / "chambre " → "Chambre "
+    s = s.replace(/^(ch\.?|chambre)\s*/i, 'Chambre ');
+    // Standardise "sb" / "salle de bain" prefix (très simple)
+    s = s.replace(/^(sdb|s\.?d\.?b\.?|salle\s*de\s*bain)\s*/i, 'Salle de bain ');
+    // Première lettre majuscule
+    s = s.charAt(0).toUpperCase() + s.slice(1);
+    return s;
+  }
+
+  // ─── LOC HISTORY (par établissement) ───────────────────
+  function locKey(etab) { return 'rtm_locs_' + (etab || '').toLowerCase().replace(/\s+/g, '_'); }
+  function getLocHistory(etab) {
+    try { return JSON.parse(localStorage.getItem(locKey(etab)) || '[]'); } catch { return []; }
+  }
+  function addLocHistory(etab, loc) {
+    if (!etab || !loc || loc === 'Inconnu') return;
+    const list = getLocHistory(etab).filter(x => x.toLowerCase() !== loc.toLowerCase());
+    list.unshift(loc);
+    localStorage.setItem(locKey(etab), JSON.stringify(list.slice(0, 12)));
+  }
+  function renderLocSuggestions() {
+    const wrap   = document.getElementById('locRecentPicks');
+    const label  = document.getElementById('locRecentLabel');
+    const input  = document.getElementById('f-loc');
+    const filter = (input.value || '').trim().toLowerCase();
+    const list   = getLocHistory(session.etab).filter(x =>
+      !filter || x.toLowerCase().includes(filter)
+    );
+    wrap.innerHTML = '';
+    list.slice(0, 6).forEach(l => {
+      const b = document.createElement('button');
+      b.className = 'quick-pick recent';
+      b.textContent = l;
+      b.type = 'button';
+      b.onclick = () => pickLoc(l);
+      wrap.appendChild(b);
+    });
+    const show = list.length > 0;
+    label.style.display = show ? 'block' : 'none';
+    wrap.style.display  = show ? 'flex'  : 'none';
+  }
+  function filterLocSuggestions() { renderLocSuggestions(); }
+
+  // ─── PHOTO RESIZE ──────────────────────────────────────
+  function resizeImage(file, maxDim = 1600, quality = 0.82) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          const scale = Math.min(1, maxDim / Math.max(width, height));
+          width  = Math.round(width  * scale);
+          height = Math.round(height * scale);
+          const canvas = document.createElement('canvas');
+          canvas.width = width; canvas.height = height;
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+          canvas.toBlob(blob => {
+            // Si la taille a augmenté (rare, petites images), garder l'original
+            if (!blob || blob.size > file.size) {
+              resolve({ file, dataUrl: e.target.result });
+              return;
+            }
+            const resizedFile = new File([blob], file.name || 'photo.jpg',
+              { type: 'image/jpeg', lastModified: Date.now() });
+            const dataUrl = canvas.toDataURL('image/jpeg', quality);
+            resolve({ file: resizedFile, dataUrl });
+          }, 'image/jpeg', quality);
+        };
+        img.onerror = () => resolve({ file, dataUrl: e.target.result });
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ─── OFFLINE QUEUE ─────────────────────────────────────
+  // Note : photos stockées en dataUrl pour pouvoir traverser les rechargements
+  const QUEUE_KEY = 'rtm_queue_v1';
+  function getQueue() {
+    try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch { return []; }
+  }
+  function setQueue(q) { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); }
+  function enqueue(item) {
+    const q = getQueue(); q.push(item); setQueue(q); updateOfflineBanner();
+  }
+  function updateOfflineBanner() {
+    const q = getQueue();
+    const b = document.getElementById('offlineBanner');
+    const t = document.getElementById('offlineBannerText');
+    if (q.length > 0) {
+      b.classList.add('show');
+      t.textContent = navigator.onLine
+        ? `${q.length} toile${q.length>1?'s':''} en attente d'envoi — nouvelle tentative…`
+        : `Hors ligne — ${q.length} toile${q.length>1?'s':''} en attente`;
+    } else if (!navigator.onLine) {
+      b.classList.add('show');
+      t.textContent = 'Hors ligne — vos toiles seront envoyées dès le retour du réseau';
+    } else {
+      b.classList.remove('show');
+    }
+  }
+
+  // dataUrl → File (pour ré-upload après reload)
+  function dataUrlToFile(dataUrl, filename = 'photo.jpg') {
+    const [meta, b64] = dataUrl.split(',');
+    const mime = (meta.match(/data:([^;]+);/) || [, 'image/jpeg'])[1];
+    const bin = atob(b64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new File([arr], filename, { type: mime });
+  }
+
+  let flushing = false;
+  async function flushQueue() {
+    if (flushing) return;
+    if (!navigator.onLine) { updateOfflineBanner(); return; }
+    const q = getQueue();
+    if (q.length === 0) { updateOfflineBanner(); return; }
+    flushing = true;
+    updateOfflineBanner();
+    try {
+      while (getQueue().length > 0) {
+        const cur = getQueue()[0];
+        try {
+          const res = await fetch(
+            `${API_BASE}/records`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fields: cur.fields, typecast: true })
+            }
+          );
+          if (!res.ok) throw new Error(await res.text());
+          const json = await res.json();
+          // Photos
+          if (cur.photos && cur.photos.length > 0) {
+            for (let i = 0; i < cur.photos.length; i++) {
+              const p = cur.photos[i];
+              const file = dataUrlToFile(p.dataUrl, p.filename);
+              const form = new FormData();
+              form.append('file', file, p.filename);
+              form.append('filename', p.filename);
+              form.append('contentType', file.type);
+              try {
+                await fetch(
+                  `${API_BASE}/uploadAttachment/${json.id}/${PHOTOS_FIELD_ID}`,
+                  { method:'POST', body: form }
+                );
+              } catch(e) { console.warn('Photo upload (queue) failed:', e); }
+            }
+          }
+          // Succès → retirer
+          const rest = getQueue().slice(1);
+          setQueue(rest);
+          updateOfflineBanner();
+        } catch (e) {
+          console.warn('Queue flush failed, will retry later:', e);
+          break; // arrête la boucle, on retentera plus tard
+        }
+      }
+    } finally {
+      flushing = false;
+      updateOfflineBanner();
+    }
+  }
+  window.addEventListener('online',  () => { showToast('Connexion rétablie — envoi en cours'); flushQueue(); });
+  window.addEventListener('offline', () => { showToast('Hors ligne — vos données sont en sécurité'); updateOfflineBanner(); });
+
+  // ─── ERROR PARSE ───────────────────────────────────────
+  function friendlyError(err) {
+    const txt = (err && err.message) ? err.message : String(err);
+    try {
+      const j = JSON.parse(txt);
+      if (j.error) {
+        if (typeof j.error === 'string') return j.error;
+        return (j.error.type ? j.error.type + ' — ' : '') + (j.error.message || 'Erreur Airtable');
+      }
+    } catch {}
+    return txt.length > 200 ? txt.slice(0, 200) + '…' : txt;
+  }
+
   // ─── COUNTER ────────────────────────────────────────────
   function updateCounter() {
     const n = submitted.length;
+    const wasZero = !document.getElementById('counterBadge').classList.contains('visible');
     document.getElementById('counterBadge').classList.toggle('visible', n > 0);
     document.getElementById('btnFinRapport').classList.toggle('visible', n > 0);
     const btnTs = document.getElementById('btnTerminerScreen');
     if (btnTs) btnTs.style.display = n > 0 ? 'block' : 'none';
     if (n > 0) document.getElementById('counterText').textContent = n + (n===1?' toile':' toiles');
+    // Toast de découvrabilité — première fois que le compteur apparaît
+    if (n === 1 && wasZero && !localStorage.getItem('rtm_counterToastSeen')) {
+      setTimeout(() => {
+        showToast('Astuce : touche le compteur en haut pour modifier une toile déjà envoyée.', 6000);
+        localStorage.setItem('rtm_counterToastSeen', '1');
+      }, 600);
+    }
   }
 
   // ─── PHOTO BAR ──────────────────────────────────────────
@@ -755,20 +1065,18 @@
   // ─── CAMERA ─────────────────────────────────────────────
   function triggerCamera() { document.getElementById('photoInput').click(); }
 
-  function handlePhotoCapture(event) {
+  async function handlePhotoCapture(event) {
     const file = event.target.files[0];
     event.target.value = '';
     if (!file) return;
-    pendingFile = file;
-    const reader = new FileReader();
-    reader.onload = e => {
-      pendingDataUrl = e.target.result;
-      document.getElementById('photoPreviewImg').src = pendingDataUrl;
-      document.getElementById('photoDescInput').value = '';
-      document.getElementById('photoModal').classList.add('show');
-      setTimeout(() => document.getElementById('photoDescInput').focus(), 400);
-    };
-    reader.readAsDataURL(file);
+    // Redimensionne avant tout (économise data + accélère uploads)
+    const { file: rFile, dataUrl } = await resizeImage(file, 1600, 0.82);
+    pendingFile    = rFile;
+    pendingDataUrl = dataUrl;
+    document.getElementById('photoPreviewImg').src = dataUrl;
+    document.getElementById('photoDescInput').value = '';
+    document.getElementById('photoModal').classList.add('show');
+    setTimeout(() => document.getElementById('photoDescInput').focus(), 400);
   }
 
   function confirmPhoto() {
@@ -784,7 +1092,7 @@
   }
   function removePhoto(idx) { photos.splice(idx, 1); refreshPhotoUI(); }
 
-  // ─── UPLOAD PHOTOS → Airtable ───────────────────────────
+  // ─── UPLOAD PHOTOS → via Worker ─────────────────────────
   async function uploadPhotos(recordId) {
     for (let i = 0; i < photos.length; i++) {
       const p = photos[i];
@@ -796,8 +1104,8 @@
       form.append('contentType', p.file.type);
       try {
         await fetch(
-          `https://content.airtable.com/v0/${BASE_ID}/${recordId}/${PHOTOS_FIELD_ID}/uploadAttachment`,
-          { method:'POST', headers:{ 'Authorization':`Bearer ${TOKEN}` }, body: form }
+          `${API_BASE}/uploadAttachment/${recordId}/${PHOTOS_FIELD_ID}`,
+          { method:'POST', body: form }
         );
       } catch(e) { console.warn('Photo upload failed:', e); }
     }
@@ -890,8 +1198,10 @@
       btnNext.textContent = 'Continuer →';
       btnNext.className   = 'btn btn-next';
     }
+    if (n === 4) renderLocSuggestions();
     if (n === 5) buildChoiceGrid('marque');
     if (n === 6) buildChoiceGrid('type');
+    clearError();
     updateProgress(); updateHeader(); updatePhotoBar();
     const inp = document.getElementById('step-'+n).querySelector('input:not([id$="-custom-input"]), textarea');
     if (inp) setTimeout(() => inp.focus(), 300);
@@ -948,29 +1258,41 @@
   }
 
   // ─── NAVIGATION ─────────────────────────────────────────
-  function canProceed() {
+  // Retourne null si OK, sinon une string explicative
+  function validationError() {
     switch(step) {
-      case 1: return document.getElementById('f-tech').value.trim() !== '';
-      case 2: return document.getElementById('f-etab').value.trim() !== '';
-      case 3: return document.getElementById('f-num').value.trim()  !== '';
-      case 4: return true;
-      case 5: return d.marque !== '';
-      case 6: return d.type   !== '';
-      case 7: return d.statut !== '';
-      case 8: return d.issues.length > 0;
-      case 9: return true;
-      default: return true;
+      case 1: return document.getElementById('f-tech').value.trim() === '' ? 'Entre ton nom pour continuer.' : null;
+      case 2: return document.getElementById('f-etab').value.trim() === '' ? 'Indique l\u2019\u00e9tablissement pour continuer.' : null;
+      case 3: return document.getElementById('f-num').value.trim()  === '' ? 'Le num\u00e9ro de toile est requis. Si non disponible, inscris \u00ab Sans num\u00e9ro \u00bb.' : null;
+      case 4: return null;
+      case 5: return d.marque === '' ? 'Choisis une marque ou ajoute-en une nouvelle.' : null;
+      case 6: return d.type   === '' ? 'Choisis un type ou ajoute-en un nouveau.' : null;
+      case 7: return d.statut === '' ? 'Indique si la toile est conforme ou non.' : null;
+      case 8: return d.issues.length === 0 ? 'Coche au moins un point non conforme (ou retourne en arri\u00e8re pour changer le statut).' : null;
+      case 9: return null;
+      default: return null;
     }
   }
   function next() {
-    if (!canProceed()) {
+    const errMsg = validationError();
+    if (errMsg) {
       const btn = document.getElementById('btnNext');
-      btn.classList.add('shake'); setTimeout(()=>btn.classList.remove('shake'), 400); return;
+      btn.classList.add('shake'); setTimeout(()=>btn.classList.remove('shake'), 400);
+      showError(errMsg);
+      return;
     }
+    clearError();
     if (step===1) session.tech = document.getElementById('f-tech').value.trim();
-    if (step===2) { session.etab = document.getElementById('f-etab').value.trim(); sessionStartStep = 3; }
+    if (step===2) {
+      session.etab = document.getElementById('f-etab').value.trim();
+      sessionStartStep = 3;
+    }
     if (step===3) d.num   = document.getElementById('f-num').value.trim();
-    if (step===4) d.loc   = document.getElementById('f-loc').value.trim();
+    if (step===4) {
+      const raw = document.getElementById('f-loc').value.trim();
+      d.loc = raw === 'Inconnu' ? 'Inconnu' : normalizeLoc(raw);
+      document.getElementById('f-loc').value = d.loc;
+    }
     if (step===9) d.notes = document.getElementById('f-notes').value.trim();
     if (step===LAST_STEP) { submit(); return; }
     let nx = step + 1;
@@ -1037,15 +1359,55 @@
     if (d.statut==='Non conforme' && d.issues.length) fields['Points de non-conformité'] = d.issues;
     if (d.notes) fields['Notes'] = d.notes;
 
+    // Mémoriser la localisation pour l'autocomplete futur
+    addLocHistory(session.etab, d.loc);
+
     const isEdit   = editingIdx !== null;
     const recordId = isEdit ? submitted[editingIdx].recordId : null;
+
+    // Helper qui finalise la sauvegarde locale + écran de succès
+    const finalizeSuccess = (recId, queued = false) => {
+      const entry = { recordId: recId, num:d.num, loc:d.loc, marque:d.marque,
+                      type:d.type, statut:d.statut, issues:[...d.issues], notes:d.notes,
+                      photoCount: photos.length };
+      if (isEdit) submitted[editingIdx] = entry; else submitted.push(entry);
+      updateCounter();
+      editingIdx = null;
+      document.getElementById('editBanner').classList.remove('show');
+      document.getElementById('successTitle').textContent =
+        queued ? 'En file d\u2019attente' : (isEdit ? 'Modifié !!' : 'Enregistré !!');
+      document.getElementById('successSub').textContent = queued
+        ? 'Pas de réseau pour le moment. Cette toile a été sauvegardée localement et sera envoyée automatiquement dès que la connexion revient.'
+        : (isEdit
+            ? 'La toile a été mise à jour avec succès.'
+            : 'Entrée bien enregistrée. Si tu dois la corriger, appuie sur le compteur de toiles en haut à droite pour retrouver et modifier cette inspection.');
+      document.getElementById('s-tech').textContent = session.tech;
+      document.getElementById('s-etab').textContent = session.etab;
+      document.getElementById('stepsWrap').style.display    = 'none';
+      document.getElementById('navWrap').style.display      = 'none';
+      document.getElementById('progressWrap').style.display = 'none';
+      document.getElementById('photoBar').classList.remove('visible');
+      document.getElementById('successScreen').classList.add('show');
+    };
+
+    // Si offline ET création (pas édition), on envoie en file d'attente
+    if (!navigator.onLine && !isEdit) {
+      const photosForQueue = photos.map((p, i) => ({
+        dataUrl: p.dataUrl,
+        filename: (p.description ? p.description : `Photo_${String(i+1).padStart(2,'0')}`) + '.jpg'
+      }));
+      enqueue({ fields, photos: photosForQueue, ts: Date.now() });
+      finalizeSuccess('queued_' + Date.now(), true);
+      return;
+    }
+
     try {
       const url = isEdit
-        ? `https://api.airtable.com/v0/${BASE_ID}/${TABLE}/${recordId}`
-        : `https://api.airtable.com/v0/${BASE_ID}/${TABLE}`;
+        ? `${API_BASE}/records/${recordId}`
+        : `${API_BASE}/records`;
       const res = await fetch(url, {
         method: isEdit ? 'PATCH' : 'POST',
-        headers: { 'Authorization':`Bearer ${TOKEN}`, 'Content-Type':'application/json' },
+        headers: { 'Content-Type':'application/json' },
         body: JSON.stringify({ fields, typecast: true })
       });
       if (!res.ok) throw new Error(await res.text());
@@ -1056,28 +1418,22 @@
         await uploadPhotos(json.id);
       }
 
-      const entry = { recordId:json.id, num:d.num, loc:d.loc, marque:d.marque,
-                      type:d.type, statut:d.statut, issues:[...d.issues], notes:d.notes,
-                      photoCount: photos.length };
-      if (isEdit) submitted[editingIdx] = entry; else submitted.push(entry);
-      updateCounter();
-      editingIdx = null;
-      document.getElementById('editBanner').classList.remove('show');
-      document.getElementById('successTitle').textContent = isEdit ? 'Modifié !!' : 'Enregistré !!';
-      document.getElementById('successSub').textContent   = isEdit
-        ? 'La toile a été mise à jour avec succès.'
-        : 'Entrée bien enregistrée. Si tu dois la corriger, appuie sur le compteur de toiles en haut à droite pour retrouver et modifier cette inspection.';
-      document.getElementById('s-tech').textContent = session.tech;
-      document.getElementById('s-etab').textContent = session.etab;
-      document.getElementById('stepsWrap').style.display    = 'none';
-      document.getElementById('navWrap').style.display      = 'none';
-      document.getElementById('progressWrap').style.display = 'none';
-      document.getElementById('photoBar').classList.remove('visible');
-      document.getElementById('successScreen').classList.add('show');
+      finalizeSuccess(json.id, false);
     } catch(err) {
-      btn.textContent = isEdit ? 'Enregistrer les modifications' : '✓ Envoyer';
-      btn.disabled = false;
-      alert('Erreur lors de l\'envoi.\n\n' + err.message);
+      // Si c'est une création et qu'on est probablement offline (TypeError = network), enqueue
+      const networkLikely = (err && err.name === 'TypeError') || !navigator.onLine;
+      if (!isEdit && networkLikely) {
+        const photosForQueue = photos.map((p, i) => ({
+          dataUrl: p.dataUrl,
+          filename: (p.description ? p.description : `Photo_${String(i+1).padStart(2,'0')}`) + '.jpg'
+        }));
+        enqueue({ fields, photos: photosForQueue, ts: Date.now() });
+        finalizeSuccess('queued_' + Date.now(), true);
+      } else {
+        btn.textContent = isEdit ? 'Enregistrer les modifications' : '✓ Envoyer';
+        btn.disabled = false;
+        showError('Erreur lors de l\u2019envoi : ' + friendlyError(err));
+      }
     }
   }
 
@@ -1093,6 +1449,7 @@
     document.getElementById('f-notes').value = '';
     document.getElementById('editBanner').classList.remove('show');
     document.getElementById('btnNext').disabled = false;
+    clearError();
     refreshPhotoUI(); showFormUI(); showStep(3);
   }
 
@@ -1107,6 +1464,7 @@
     document.querySelectorAll('input, textarea').forEach(i=>i.value='');
     document.getElementById('editBanner').classList.remove('show');
     document.getElementById('btnNext').disabled = false;
+    clearError();
     updateCounter(); refreshPhotoUI(); showFormUI(); showStep(1);
   }
 
@@ -1359,6 +1717,11 @@
 
   // ─── INIT ───────────────────────────────────────────────
   showStep(1);
+  updateOfflineBanner();
+  // Tenter de vider la file dès le chargement (au cas où on aurait fermé hors ligne)
+  if (navigator.onLine) flushQueue();
+  // Retry périodique (toutes les 60s) si éléments en attente
+  setInterval(() => { if (getQueue().length > 0 && navigator.onLine) flushQueue(); }, 60000);
 </script>
 </body>
 </html>
