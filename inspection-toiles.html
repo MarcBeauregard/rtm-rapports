@@ -776,12 +776,14 @@
 <script>
   // ─── GULDMANN RECOMMENDATIONS ──────────────────────────
   // Personnaliser avec les vraies références produit Guldmann
+  // Modèles Guldmann réels (gammes officielles — confirmer la taille exacte avec le représentant)
   const GULDMANN_RECOS = {
-    'Salle de bain':    'Guldmann — Élingue de bain universelle (contactez votre représentant pour la référence exacte)',
-    'Double cuissarde': 'Guldmann — Élingue double cuissarde (contactez votre représentant pour la référence exacte)',
+    'Salle de bain':    'Guldmann Hygiene High Back Sling — toile d\'hygiène avec dossier haut, conçue pour les transferts au bain et à la toilette (accès dégagé pour les soins)',
+    'Double cuissarde': 'Guldmann Basic High Back Sling — toile universelle à dossier haut, deux supports cuisses indépendants',
   };
+  const GULDMANN_REP = 'Christophe Raynal — christophe.raynal@rtmmedical.com';
   function getGuldmann(type) {
-    return GULDMANN_RECOS[type] || 'Guldmann — Consultez le catalogue pour le modèle correspondant à ce type de toile';
+    return GULDMANN_RECOS[type] || 'Guldmann — gamme à déterminer selon le besoin clinique du patient (hygiène, transfert, amputé, repositionnement)';
   }
 
   // ─── CONFIG ─────────────────────────────────────────────
@@ -1656,7 +1658,8 @@
         const rec      = getGuldmann(t.type);
         const issLines = doc.splitTextToSize(`Points non-conformes : ${issues}`, W - 42);
         const recLines = doc.splitTextToSize(`Remplacement suggéré : ${rec}`, W - 42);
-        const cardH    = 8 + issLines.length * 4.2 + recLines.length * 4.2 + 10;
+        const repLines = doc.splitTextToSize(`Représentant Guldmann : ${GULDMANN_REP}`, W - 42);
+        const cardH    = 8 + issLines.length * 4.2 + recLines.length * 4.2 + repLines.length * 4 + 12;
 
         if (y + cardH > H - 22) { doc.addPage(); y = 20; }
 
@@ -1677,6 +1680,9 @@
         cy += issLines.length * 4.2 + 2;
         doc.setFont('helvetica', 'bold'); doc.setTextColor(...navy);
         doc.text(recLines, 17, cy);
+        cy += recLines.length * 4.2 + 2;
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...muted);
+        doc.text(repLines, 17, cy);
 
         y += cardH + 5;
       });
