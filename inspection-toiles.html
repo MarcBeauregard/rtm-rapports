@@ -1861,10 +1861,78 @@
     }
   });
 
+  // ─── SEED (simulation CHSLD Biermans) ────────────────────
+  // Permet de charger un jeu de 32 toiles déjà saisies aujourd'hui via
+  // ?seed=biermans — utile pour consulter/envoyer le rapport depuis l'iPhone.
+  const SEED_BIERMANS = {
+    tech: "Marc-Étienne Beauregard",
+    etab: "CHSLD Biermans",
+    entries: [
+      {recordId:"rec6PgBwhDLoGoqhu",num:"hhh222",loc:"SDB 3",marque:"Handicare",type:"",taille:"",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"rec9JBqjGNPDhmIsv",num:"1234matitevache",loc:"1",marque:"Guldmann",type:"Double cuissarde",taille:"",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"recAnCmOVP3gzurKL",num:"dwhhwhd",loc:"wijdijwid",marque:"Québec Médical",type:"",taille:"",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"recB3y7uiGCmvFl92",num:"5552kkk",loc:"Testhh",marque:"Québec Médical",type:"Double cuissarde",taille:"",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"recFE0m9ZKx34BFbK",num:"Jsjbebe",loc:"Inconnu",marque:"Arjo",type:"À station debout/verticalisateur",taille:"",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"recG4yeEaHOnAfKvh",num:"Chu.",loc:"Inconnu",marque:"Médi-Toile",type:"Salle de bain",taille:"L",statut:"Non conforme",issues:["Effilochage"],notes:"",photoCount:0},
+      {recordId:"recIXHP6Fp6tG9hUL",num:"Yhhhh",loc:"Inconnu",marque:"PRISM Medical",type:"Toile hygiénique",taille:"XL",statut:"Non conforme",issues:["Sangles ou boucles abîmées"],notes:"",photoCount:0},
+      {recordId:"recJszW1Bg358SKzA",num:"552-12",loc:"Chambre 215",marque:"Québec Médical",type:"Quick fit (toile universelle)",taille:"",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"recLBKhxqBsh4grt8",num:"Meditoile",loc:"Hh",marque:"Médi-Toile",type:"Double cuissarde",taille:"",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"recMjbeN41q0mES8G",num:"225998",loc:"255",marque:"Québec Médical",type:"Double cuissarde",taille:"",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"recPJgCAT3ikpzHM1",num:"Test5",loc:"Inconnu",marque:"PRISM Medical",type:"Quick fit (toile universelle)",taille:"",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"recVzARr9ZeljLyVc",num:"Testx",loc:"UUa",marque:"Québec Médical",type:"À station debout/verticalisateur",taille:"M",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"recW3DuUnW5z5gNl7",num:"Bleus",loc:"325-2",marque:"Médi-Toile",type:"Double cuissarde",taille:"",statut:"Conforme",issues:[],notes:"Pis a pue",photoCount:0},
+      {recordId:"recYhIzejryf8ggY9",num:"003884",loc:"Inconnu",marque:"Guldmann",type:"Salle de bain",taille:"",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"recYjNHwsqKfqc72R",num:"5552",loc:"667",marque:"Québec Médical",type:"",taille:"",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"recZKtAUMAZn8exyA",num:"2iuiii",loc:"",marque:"Handicare",type:"Double cuissarde",taille:"",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"recdeLvtrgNEBFIDe",num:"Toile 1",loc:"Chez nous",marque:"Québec Médical",type:"Double cuissarde",taille:"",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"receASiInzHsXwAHr",num:"Toile 2",loc:"Inconnu",marque:"Handicare",type:"",taille:"",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"receIOjNL3VsPd9dK",num:"T6755?",loc:"Inconnu",marque:"PRISM Medical",type:"Double cuissarde",taille:"",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"receSNLAHwKclHOae",num:"555",loc:"Chambre 216",marque:"Québec Médical",type:"Toile hygiénique",taille:"S",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"receYnn8qpoZUtNPu",num:"Hhha",loc:"Hhhaa",marque:"Handicare",type:"Double cuissarde",taille:"",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"recgR7ZYek0OM82KQ",num:"Ghunn",loc:"Inconnu",marque:"Arjo",type:"À station debout/verticalisateur",taille:"L",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"recgcOjeKCQUtQORE",num:"h3hhh3",loc:"2993",marque:"Québec Médical",type:"Double cuissarde",taille:"",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"recjYkAyYJz8AQkXi",num:"8888uuuu",loc:"",marque:"Handicare",type:"Double cuissarde",taille:"",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"recksjErOsv6HVoRB",num:"1773",loc:"Chambre ambre 216",marque:"Arjo",type:"Double cuissarde",taille:"",statut:"Non conforme",issues:["Trou ou déchirure","Relâchement du tissu ou des coutures"],notes:"",photoCount:0},
+      {recordId:"recmsALfLNRJA1F26",num:"222",loc:"",marque:"Québec Médical",type:"",taille:"",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"recmuLwS8DC4EFpEe",num:"2j2jj",loc:"",marque:"Québec Médical",type:"",taille:"",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"recrzLHl8Po5S5rvM",num:"Finger#1",loc:"Danstoncul",marque:"Arjo",type:"",taille:"",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"recsRsvX250rdZd73",num:"hhh333",loc:"SDB 2",marque:"Québec Médical",type:"Double cuissarde",taille:"",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"recswISzUj4AK8Gaf",num:"292929",loc:"",marque:"Québec Médical",type:"",taille:"",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"recxeU7VV38gxIWFQ",num:"Toile 3",loc:"477",marque:"Guldmann",type:"",taille:"",statut:"Conforme",issues:[],notes:"",photoCount:0},
+      {recordId:"recy5E0ndIww8GVqR",num:"Pastesaffaires",loc:"A",marque:"Arjo",type:"",taille:"",statut:"Conforme",issues:[],notes:"",photoCount:0}
+    ]
+  };
+
+  function applySeed(seed) {
+    session.tech = seed.tech;
+    session.etab = seed.etab;
+    submitted = seed.entries.map(e => ({...e, issues:[...e.issues]}));
+    sessionStartStep = 3;
+    step = 3;
+    document.getElementById('f-tech').value = session.tech;
+    document.getElementById('f-etab').value = session.etab;
+    saveSession();
+    updateCounter();
+    updateHeader();
+    showStep(3);
+    showToast(`Simulation chargée — ${submitted.length} toiles à ${session.etab}.`, 5000);
+    // Nettoyer l'URL pour éviter de recharger le seed à chaque refresh
+    try { history.replaceState(null, '', location.pathname); } catch(e) {}
+  }
+
   // ─── INIT ───────────────────────────────────────────────
+  // Priorité : ?seed=biermans (simulation) > restauration session du jour.
+  (function initApp() {
+    const params = new URLSearchParams(location.search);
+    const seedName = params.get('seed');
+    if (seedName === 'biermans') { applySeed(SEED_BIERMANS); return; }
+  })();
+
   // Restauration auto de la session en cours (mêmes tech + etab + toiles
   // soumises du jour) si le technicien a fermé/rouvert l'app pendant sa journée.
   (function restoreSession() {
+    // Si le seed vient d'être chargé, la session est déjà au step 3 — on sort.
+    if (sessionStartStep === 3 && submitted.length > 0 && session.tech && session.etab) return;
     const s = loadSession();
     if (!s) { showStep(1); return; }
     session.tech = s.tech || '';
