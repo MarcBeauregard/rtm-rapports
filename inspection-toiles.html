@@ -637,6 +637,16 @@
     </div>
 
     <div class="step" id="step-8">
+      <div class="step-q">Charge maximale</div>
+      <div class="step-hint">Capacité indiquée sur l'étiquette de la toile</div>
+      <div class="choice-grid" id="charge-grid"></div>
+      <div class="custom-input-wrap" id="charge-custom">
+        <input class="field" id="charge-custom-input" type="text" placeholder="Ex : 350 lb" inputmode="text">
+        <button class="btn-confirm" onclick="confirmCustom('charge')">OK</button>
+      </div>
+    </div>
+
+    <div class="step" id="step-9">
       <div class="step-q">Statut de la toile</div>
       <div class="step-hint">La toile passe-t-elle l'inspection ?</div>
       <div class="status-grid">
@@ -645,7 +655,7 @@
       </div>
     </div>
 
-    <div class="step" id="step-9">
+    <div class="step" id="step-10">
       <div class="step-q">Points non conformes</div>
       <div class="step-hint">Cochez tout ce qui s'applique</div>
       <div class="checklist">
@@ -665,12 +675,6 @@
           <button class="btn-confirm" onclick="confirmAutreCheck()">OK</button>
         </div>
       </div>
-    </div>
-
-    <div class="step" id="step-10">
-      <div class="step-q">Notes additionnelles</div>
-      <div class="step-hint">Optionnel — tout commentaire pertinent</div>
-      <textarea class="field" id="f-notes" rows="5" placeholder="Ex : Remplacement prévu prochainement…"></textarea>
     </div>
 
   </div><!-- /steps -->
@@ -695,14 +699,20 @@
     <button class="btn-change-session" onclick="resetSession()">Changer de technicien / établissement</button>
   </div>
 
-  <!-- ═══ PHOTO BAR ═══ -->
+  <!-- ═══ PHOTO + NOTES BAR ═══ -->
   <div class="photo-bar" id="photoBar">
-    <div style="flex:1; min-width:0;">
-      <button class="btn-photo" id="btnPhoto" onclick="triggerCamera()">
-        <span>Ajouter une photo</span>
-        <span class="photo-count-badge" id="photoBadge"></span>
-      </button>
-      <div class="photo-thumbs" id="photoThumbs" style="margin-top:6px; display:none;"></div>
+    <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:6px;">
+      <div style="display:flex; gap:8px;">
+        <button class="btn-photo" id="btnPhoto" onclick="triggerCamera()" style="flex:1;">
+          <span>Ajouter une photo</span>
+          <span class="photo-count-badge" id="photoBadge"></span>
+        </button>
+        <button class="btn-photo" id="btnNotes" onclick="openNotesModal()" style="flex:1;">
+          <span>Ajouter une note</span>
+          <span class="photo-count-badge" id="notesBadge"></span>
+        </button>
+      </div>
+      <div class="photo-thumbs" id="photoThumbs" style="display:none;"></div>
     </div>
   </div>
 
@@ -734,6 +744,22 @@
 
 <!-- Caméra (caché) -->
 <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoCapture(event)">
+
+<!-- ═══ NOTES MODAL ═══ -->
+<div class="modal-overlay" id="notesModal">
+  <div class="photo-modal">
+    <div class="photo-modal-handle"></div>
+    <div class="photo-modal-title" id="notesModalTitle">Ajouter une note</div>
+    <div class="photo-desc-label">Commentaire pertinent sur cette toile</div>
+    <textarea class="field" id="notesModalInput" rows="5"
+              placeholder="Ex : Remplacement prévu prochainement, patient bariatrique, déchirure côté droit…"
+              style="font-size:16px;"></textarea>
+    <div class="photo-modal-actions">
+      <button class="btn-photo-cancel"  onclick="cancelNotes()">Annuler</button>
+      <button class="btn-photo-confirm" onclick="confirmNotes()">Enregistrer</button>
+    </div>
+  </div>
+</div>
 
 <!-- ═══ RAPPORT SHEET ═══ -->
 <div class="history-overlay" id="rapportOverlay" onclick="closeRapport()"></div>
@@ -807,6 +833,7 @@
   const PHOTOS_FIELD_ID = 'fldiywgyw1vZgtIoB';
   const DEFAULT_TYPES   = ['Salle de bain', 'Double cuissarde'];
   const DEFAULT_TAILLES = ['S', 'M', 'L', 'XL', 'XXL'];
+  const DEFAULT_CHARGES = ['175 lb', '275 lb', '440 lb', '660 lb', '880 lb'];
   const LAST_STEP       = 10;
 
   // ─── STATE ──────────────────────────────────────────────
@@ -825,7 +852,7 @@
   let todayFetchDone = false;
 
   function freshData() {
-    return { num:'', loc:'', marque:'', type:'', taille:'', statut:'', issues:[], notes:'' };
+    return { num:'', loc:'', marque:'', type:'', taille:'', charge:'', statut:'', issues:[], notes:'' };
   }
 
   // ─── LOCALSTORAGE ───────────────────────────────────────
@@ -1099,9 +1126,10 @@
     }
   }
 
-  // ─── PHOTO BAR ──────────────────────────────────────────
+  // ─── PHOTO + NOTES BAR ─────────────────────────────────
   function updatePhotoBar() {
     document.getElementById('photoBar').classList.toggle('visible', step >= 3);
+    refreshNotesUI();
   }
 
   function refreshPhotoUI() {
@@ -1122,6 +1150,36 @@
         <button class="photo-thumb-del" onclick="removePhoto(${i})">✕</button>`;
       thumbs.appendChild(wrap);
     });
+  }
+
+  function refreshNotesUI() {
+    const has   = !!(d && d.notes && d.notes.trim());
+    const btn   = document.getElementById('btnNotes');
+    const badge = document.getElementById('notesBadge');
+    if (!btn) return;
+    btn.classList.toggle('has-photos', has);
+    btn.querySelector('span').textContent = has ? 'Modifier la note' : 'Ajouter une note';
+    badge.textContent = has ? '✓' : '';
+    badge.classList.toggle('visible', has);
+  }
+
+  // ─── NOTES MODAL ───────────────────────────────────────
+  function openNotesModal() {
+    const overlay = document.getElementById('notesModal');
+    const input   = document.getElementById('notesModalInput');
+    const title   = document.getElementById('notesModalTitle');
+    input.value = (d && d.notes) || '';
+    title.textContent = (d && d.notes) ? 'Modifier la note' : 'Ajouter une note';
+    overlay.classList.add('show');
+    setTimeout(() => input.focus(), 100);
+  }
+  function cancelNotes() {
+    document.getElementById('notesModal').classList.remove('show');
+  }
+  function confirmNotes() {
+    d.notes = document.getElementById('notesModalInput').value.trim();
+    document.getElementById('notesModal').classList.remove('show');
+    refreshNotesUI();
   }
 
   // ─── CAMERA ─────────────────────────────────────────────
@@ -1212,16 +1270,15 @@
     editingIdx = idx;
     const entry = submitted[idx];
     d = { num:entry.num, loc:entry.loc, marque:entry.marque, type:entry.type,
-          taille:entry.taille || '',
-          statut:entry.statut, issues:[...entry.issues], notes:entry.notes };
+          taille:entry.taille || '', charge:entry.charge || '',
+          statut:entry.statut, issues:[...entry.issues], notes:entry.notes || '' };
     photos = [];
     refreshPhotoUI();
     document.getElementById('f-num').value   = d.num;
     document.getElementById('f-loc').value   = d.loc;
-    document.getElementById('f-notes').value = d.notes;
     resetChecklistUI();
     d.issues.forEach(val => {
-      const item = [...document.querySelectorAll('#step-9 .check-item[data-val]')].find(el => el.dataset.val === val);
+      const item = [...document.querySelectorAll('#step-10 .check-item[data-val]')].find(el => el.dataset.val === val);
       if (item) item.classList.add('on');
     });
     document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('dim'));
@@ -1266,6 +1323,7 @@
     if (n === 5) buildChoiceGrid('marque');
     if (n === 6) buildChoiceGrid('type');
     if (n === 7) buildChoiceGrid('taille');
+    if (n === 8) buildChoiceGrid('charge');
     clearError();
     updateProgress(); updateHeader(); updatePhotoBar();
     const inp = document.getElementById('step-'+n).querySelector('input:not([id$="-custom-input"]), textarea');
@@ -1287,6 +1345,7 @@
     const custom   = getCustom(field);
     const defaults = field === 'type'   ? DEFAULT_TYPES
                    : field === 'taille' ? DEFAULT_TAILLES
+                   : field === 'charge' ? DEFAULT_CHARGES
                    : [];
     const defaultsLC = defaults.map(x => x.toLowerCase());
     const all = [...defaults, ...custom.filter(c => !defaultsLC.includes(c.toLowerCase()))];
@@ -1379,9 +1438,9 @@
       case 5: return d.marque === '' ? 'Choisis une marque ou ajoute-en une nouvelle.' : null;
       case 6: return d.type   === '' ? 'Choisis un type ou ajoute-en un nouveau.' : null;
       case 7: return d.taille === '' ? 'Choisis une taille ou pr\u00e9cise-la avec \u00ab Autre \u00bb.' : null;
-      case 8: return d.statut === '' ? 'Indique si la toile est conforme ou non.' : null;
-      case 9: return d.issues.length === 0 ? 'Coche au moins un point non conforme (ou retourne en arri\u00e8re pour changer le statut).' : null;
-      case 10: return null;
+      case 8: return d.charge === '' ? 'Choisis la charge maximale ou pr\u00e9cise-la avec \u00ab Autre \u00bb.' : null;
+      case 9: return d.statut === '' ? 'Indique si la toile est conforme ou non.' : null;
+      case 10: return d.issues.length === 0 ? 'Coche au moins un point non conforme (ou retourne en arri\u00e8re pour changer le statut).' : null;
       default: return null;
     }
   }
@@ -1413,15 +1472,17 @@
       d.loc = raw === 'Inconnu' ? 'Inconnu' : normalizeLoc(raw);
       document.getElementById('f-loc').value = d.loc;
     }
-    if (step===10) d.notes = document.getElementById('f-notes').value.trim();
+    // Si on est sur le statut (step 9) et que c'est Conforme, on soumet directement
+    // (plus d'étape de notes — les notes s'ajoutent via le bouton du bas à tout moment).
+    if (step===9 && d.statut==='Conforme') { submit(); return; }
     if (step===LAST_STEP) { submit(); return; }
-    let nx = step + 1;
-    if (nx===9 && d.statut==='Conforme') nx = 10;
-    step = nx; showStep(step);
+    step = step + 1; showStep(step);
   }
   function back() {
     let pv = step - 1;
-    if (pv===9 && d.statut==='Conforme') pv = 8;
+    // Si on revient depuis les issues (step 10) et que statut était Conforme,
+    // on saute par-dessus pour revenir au statut.
+    if (pv===10 && d.statut==='Conforme') pv = 9;
     step = pv; showStep(step);
   }
   function pickStatus(val) {
@@ -1445,7 +1506,7 @@
   function confirmAutreCheck() {
     const input = document.getElementById('autre-check-input');
     const val = input.value.trim(); if (!val) return;
-    const checklist = document.querySelector('#step-9 .checklist');
+    const checklist = document.querySelector('#step-10 .checklist');
     const newItem = document.createElement('div');
     newItem.className = 'check-item on'; newItem.dataset.val = val; newItem.dataset.custom = 'true';
     newItem.onclick = function(){ toggleCheck(this); };
@@ -1455,8 +1516,8 @@
     input.value = ''; document.getElementById('autre-check-wrap').style.display = 'none';
   }
   function resetChecklistUI() {
-    document.querySelectorAll('#step-9 .check-item[data-custom]').forEach(el=>el.remove());
-    document.querySelectorAll('#step-9 .check-item').forEach(b=>b.classList.remove('on'));
+    document.querySelectorAll('#step-10 .check-item[data-custom]').forEach(el=>el.remove());
+    document.querySelectorAll('#step-10 .check-item').forEach(b=>b.classList.remove('on'));
     document.getElementById('autre-check-wrap').style.display = 'none';
     document.getElementById('autre-check-input').value = '';
   }
@@ -1476,9 +1537,10 @@
       'Établissement':    session.etab,
     };
     if (d.taille) fields['Taille'] = d.taille;
-    if (d.loc)   fields['Localisation'] = d.loc;
+    if (d.charge) fields['Charge maximale'] = d.charge;
+    if (d.loc)    fields['Localisation'] = d.loc;
     if (d.statut==='Non conforme' && d.issues.length) fields['Points de non-conformité'] = d.issues;
-    if (d.notes) fields['Notes'] = d.notes;
+    if (d.notes)  fields['Notes'] = d.notes;
 
     // Mémoriser la localisation pour l'autocomplete futur
     addLocHistory(session.etab, d.loc);
@@ -1489,7 +1551,8 @@
     // Helper qui finalise la sauvegarde locale + écran de succès
     const finalizeSuccess = (recId, queued = false) => {
       const entry = { recordId: recId, num:d.num, loc:d.loc, marque:d.marque,
-                      type:d.type, taille:d.taille, statut:d.statut, issues:[...d.issues], notes:d.notes,
+                      type:d.type, taille:d.taille, charge:d.charge,
+                      statut:d.statut, issues:[...d.issues], notes:d.notes,
                       photoCount: photos.length };
       if (isEdit) submitted[editingIdx] = entry; else submitted.push(entry);
       saveSession();
@@ -1568,11 +1631,10 @@
     document.querySelectorAll('.custom-input-wrap').forEach(w=>w.classList.remove('show'));
     document.getElementById('f-num').value   = '';
     document.getElementById('f-loc').value   = '';
-    document.getElementById('f-notes').value = '';
     document.getElementById('editBanner').classList.remove('show');
     document.getElementById('btnNext').disabled = false;
     clearError();
-    refreshPhotoUI(); showFormUI(); showStep(3);
+    refreshPhotoUI(); refreshNotesUI(); showFormUI(); showStep(3);
   }
 
   // ─── RESET SESSION ──────────────────────────────────────
@@ -1955,6 +2017,7 @@
     etab:   'fldk7N7xCbFjgyET0',
     loc:    'fldF9NvcoUUJI98aZ',
     taille: 'fldKJcKNQGaepnLc7',
+    charge: 'fldhKqTxmxeLBUr6x',
     notes:  'fldA3JyCCd7LVCcy4',
   };
   function parseAirtableRecord(r) {
@@ -1968,6 +2031,7 @@
       marque: f[FID.marque] || '',
       type:   pickName(f[FID.type]),
       taille: pickName(f[FID.taille]),
+      charge: FID.charge ? pickName(f[FID.charge]) : '',
       statut: pickName(f[FID.statut]),
       issues,
       loc:    f[FID.loc]    || '',
@@ -2051,6 +2115,7 @@
         marque:     r.marque,
         type:       r.type,
         taille:     r.taille,
+        charge:     r.charge || '',
         statut:     r.statut,
         issues:     [...r.issues],
         notes:      r.notes,
@@ -2067,38 +2132,38 @@
     tech: "Marc-Étienne Beauregard",
     etab: "CHSLD Biermans",
     entries: [
-      {recordId:"rec6PgBwhDLoGoqhu",num:"TS-04102",loc:"Chambre 102",         marque:"Guldmann",      type:"Double cuissarde",                taille:"L",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
-      {recordId:"rec9JBqjGNPDhmIsv",num:"TS-04108",loc:"Chambre 108",         marque:"Guldmann",      type:"Salle de bain",                   taille:"M",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
-      {recordId:"recAnCmOVP3gzurKL",num:"TS-04115",loc:"Chambre 115",         marque:"Arjo",          type:"Double cuissarde",                taille:"XL", statut:"Conforme",     issues:[],                                                        notes:"Patient bariatrique — vérifier annuellement",               photoCount:0},
-      {recordId:"recB3y7uiGCmvFl92",num:"TS-04119",loc:"Chambre 119",         marque:"Handicare",     type:"Quick fit (toile universelle)",   taille:"L",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
-      {recordId:"recFE0m9ZKx34BFbK",num:"TS-04124",loc:"Bain thérapeutique 1A",marque:"Guldmann",     type:"Salle de bain",                   taille:"L",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
-      {recordId:"recG4yeEaHOnAfKvh",num:"TS-03821",loc:"Chambre 110",         marque:"Médi-Toile",    type:"Salle de bain",                   taille:"L",  statut:"Non conforme", issues:["Effilochage"],                                           notes:"Effilochage des bordures — à remplacer dans les 30 jours",  photoCount:0},
-      {recordId:"recIXHP6Fp6tG9hUL",num:"TS-03856",loc:"Chambre 217",         marque:"PRISM Medical", type:"Toile hygiénique",                taille:"XL", statut:"Non conforme", issues:["Sangles ou boucles abîmées"],                            notes:"Boucle de fixation arrière déformée — retirer du service",  photoCount:0},
-      {recordId:"recJszW1Bg358SKzA",num:"TS-04201",loc:"Chambre 201",         marque:"Québec Médical",type:"Quick fit (toile universelle)",   taille:"M",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
-      {recordId:"recLBKhxqBsh4grt8",num:"TS-04205",loc:"Chambre 205",         marque:"Médi-Toile",    type:"Double cuissarde",                taille:"L",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
-      {recordId:"recMjbeN41q0mES8G",num:"TS-04208",loc:"Chambre 208",         marque:"Québec Médical",type:"Double cuissarde",                taille:"M",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
-      {recordId:"recPJgCAT3ikpzHM1",num:"TS-04212",loc:"Chambre 212",         marque:"PRISM Medical", type:"Quick fit (toile universelle)",   taille:"L",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
-      {recordId:"recVzARr9ZeljLyVc",num:"TS-04219",loc:"Chambre 219",         marque:"Arjo",          type:"À station debout/verticalisateur",taille:"M",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
-      {recordId:"recW3DuUnW5z5gNl7",num:"TS-04224",loc:"Salle de bain Aile B",marque:"Guldmann",      type:"Salle de bain",                   taille:"L",  statut:"Conforme",     issues:[],                                                        notes:"Inspection annuelle complétée",                             photoCount:0},
-      {recordId:"recYhIzejryf8ggY9",num:"TS-03891",loc:"Chambre 222",         marque:"Médi-Toile",    type:"Double cuissarde",                taille:"L",  statut:"Non conforme", issues:["Effilochage","Décoloration importante"],                 notes:"Effilochage important + décoloration — fin de vie utile",   photoCount:0},
-      {recordId:"recYjNHwsqKfqc72R",num:"TS-04301",loc:"Chambre 301",         marque:"Québec Médical",type:"Double cuissarde",                taille:"L",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
-      {recordId:"recZKtAUMAZn8exyA",num:"TS-04305",loc:"Chambre 305",         marque:"Handicare",     type:"Double cuissarde",                taille:"M",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
-      {recordId:"recdeLvtrgNEBFIDe",num:"TS-04309",loc:"Chambre 309",         marque:"Guldmann",      type:"Double cuissarde",                taille:"L",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
-      {recordId:"receASiInzHsXwAHr",num:"TS-04314",loc:"Chambre 314",         marque:"Québec Médical",type:"Salle de bain",                   taille:"M",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
-      {recordId:"receIOjNL3VsPd9dK",num:"TS-04318",loc:"Chambre 318",         marque:"PRISM Medical", type:"Double cuissarde",                taille:"XXL",statut:"Conforme",     issues:[],                                                        notes:"Patient bariatrique — vérifier état mensuellement",         photoCount:0},
-      {recordId:"receSNLAHwKclHOae",num:"TS-04322",loc:"Bain thérapeutique 3A",marque:"Guldmann",     type:"Toile hygiénique",                taille:"L",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
-      {recordId:"receYnn8qpoZUtNPu",num:"TS-03928",loc:"Chambre 320",         marque:"Arjo",          type:"Double cuissarde",                taille:"L",  statut:"Non conforme", issues:["Trou ou déchirure","Relâchement du tissu ou des coutures"],notes:"Déchirure 3 cm sur sangle gauche — à retirer immédiatement",photoCount:0},
-      {recordId:"recgR7ZYek0OM82KQ",num:"TS-04401",loc:"Chambre 401",         marque:"Arjo",          type:"À station debout/verticalisateur",taille:"L",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
-      {recordId:"recgcOjeKCQUtQORE",num:"TS-04405",loc:"Chambre 405",         marque:"Québec Médical",type:"Double cuissarde",                taille:"L",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
-      {recordId:"recjYkAyYJz8AQkXi",num:"TS-04409",loc:"Chambre 409",         marque:"Handicare",     type:"Double cuissarde",                taille:"M",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
-      {recordId:"recksjErOsv6HVoRB",num:"TS-03945",loc:"Chambre 408",         marque:"Handicare",     type:"Salle de bain",                   taille:"M",  statut:"Non conforme", issues:["Toile souillée (non nettoyable)"],                       notes:"Souillure incrustée après plusieurs lavages — remplacer",   photoCount:0},
-      {recordId:"recmsALfLNRJA1F26",num:"TS-04412",loc:"Chambre 412",         marque:"Québec Médical",type:"Toile hygiénique",                taille:"L",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
-      {recordId:"recmuLwS8DC4EFpEe",num:"TS-04418",loc:"Chambre 418",         marque:"Guldmann",      type:"Quick fit (toile universelle)",   taille:"L",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
-      {recordId:"recrzLHl8Po5S5rvM",num:"TS-03967",loc:"Bain thérapeutique 2A",marque:"Guldmann",     type:"Salle de bain",                   taille:"L",  statut:"Non conforme", issues:["Modèle illisible ou effacé","Taille illisible ou effacée"],notes:"Étiquette complètement effacée — non identifiable",        photoCount:0},
-      {recordId:"recsRsvX250rdZd73",num:"TS-04425",loc:"Salon Aile A",        marque:"Québec Médical",type:"Double cuissarde",                taille:"L",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
-      {recordId:"recswISzUj4AK8Gaf",num:"TS-03982",loc:"Chambre 414",         marque:"Médi-Toile",    type:"Double cuissarde",                taille:"XL", statut:"Non conforme", issues:["Sangles ou boucles abîmées","Effilochage"],              notes:"Sangle effilochée près de la boucle métallique",            photoCount:0},
-      {recordId:"recxeU7VV38gxIWFQ",num:"TS-04430",loc:"Réserve équipement",  marque:"Guldmann",      type:"Double cuissarde",                taille:"M",  statut:"Conforme",     issues:[],                                                        notes:"Toile neuve — mise en service avril 2026",                  photoCount:0},
-      {recordId:"recy5E0ndIww8GVqR",num:"TS-04001",loc:"Salle de physiothérapie",marque:"Arjo",       type:"À station debout/verticalisateur",taille:"M",  statut:"Non conforme", issues:["Relâchement du tissu ou des coutures"],                  notes:"Coutures distendues — sécurité compromise, hors service",   photoCount:0}
+      {recordId:"rec6PgBwhDLoGoqhu",num:"TS-04102",loc:"Chambre 102",         marque:"Guldmann",      type:"Double cuissarde",                taille:"L",  charge:"440 lb",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
+      {recordId:"rec9JBqjGNPDhmIsv",num:"TS-04108",loc:"Chambre 108",         marque:"Guldmann",      type:"Salle de bain",                   taille:"M",  charge:"440 lb",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
+      {recordId:"recAnCmOVP3gzurKL",num:"TS-04115",loc:"Chambre 115",         marque:"Arjo",          type:"Double cuissarde",                taille:"XL", charge:"660 lb", statut:"Conforme",     issues:[],                                                        notes:"Patient bariatrique — vérifier annuellement",               photoCount:0},
+      {recordId:"recB3y7uiGCmvFl92",num:"TS-04119",loc:"Chambre 119",         marque:"Handicare",     type:"Quick fit (toile universelle)",   taille:"L",  charge:"440 lb",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
+      {recordId:"recFE0m9ZKx34BFbK",num:"TS-04124",loc:"Bain thérapeutique 1A",marque:"Guldmann",     type:"Salle de bain",                   taille:"L",  charge:"660 lb",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
+      {recordId:"recG4yeEaHOnAfKvh",num:"TS-03821",loc:"Chambre 110",         marque:"Médi-Toile",    type:"Salle de bain",                   taille:"L",  charge:"660 lb",  statut:"Non conforme", issues:["Effilochage"],                                           notes:"Effilochage des bordures — à remplacer dans les 30 jours",  photoCount:0},
+      {recordId:"recIXHP6Fp6tG9hUL",num:"TS-03856",loc:"Chambre 217",         marque:"PRISM Medical", type:"Toile hygiénique",                taille:"XL", charge:"660 lb", statut:"Non conforme", issues:["Sangles ou boucles abîmées"],                            notes:"Boucle de fixation arrière déformée — retirer du service",  photoCount:0},
+      {recordId:"recJszW1Bg358SKzA",num:"TS-04201",loc:"Chambre 201",         marque:"Québec Médical",type:"Quick fit (toile universelle)",   taille:"M",  charge:"440 lb",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
+      {recordId:"recLBKhxqBsh4grt8",num:"TS-04205",loc:"Chambre 205",         marque:"Médi-Toile",    type:"Double cuissarde",                taille:"L",  charge:"440 lb",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
+      {recordId:"recMjbeN41q0mES8G",num:"TS-04208",loc:"Chambre 208",         marque:"Québec Médical",type:"Double cuissarde",                taille:"M",  charge:"440 lb",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
+      {recordId:"recPJgCAT3ikpzHM1",num:"TS-04212",loc:"Chambre 212",         marque:"PRISM Medical", type:"Quick fit (toile universelle)",   taille:"L",  charge:"440 lb",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
+      {recordId:"recVzARr9ZeljLyVc",num:"TS-04219",loc:"Chambre 219",         marque:"Arjo",          type:"À station debout/verticalisateur",taille:"M",  charge:"275 lb",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
+      {recordId:"recW3DuUnW5z5gNl7",num:"TS-04224",loc:"Salle de bain Aile B",marque:"Guldmann",      type:"Salle de bain",                   taille:"L",  charge:"660 lb",  statut:"Conforme",     issues:[],                                                        notes:"Inspection annuelle complétée",                             photoCount:0},
+      {recordId:"recYhIzejryf8ggY9",num:"TS-03891",loc:"Chambre 222",         marque:"Médi-Toile",    type:"Double cuissarde",                taille:"L",  charge:"440 lb",  statut:"Non conforme", issues:["Effilochage","Décoloration importante"],                 notes:"Effilochage important + décoloration — fin de vie utile",   photoCount:0},
+      {recordId:"recYjNHwsqKfqc72R",num:"TS-04301",loc:"Chambre 301",         marque:"Québec Médical",type:"Double cuissarde",                taille:"L",  charge:"440 lb",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
+      {recordId:"recZKtAUMAZn8exyA",num:"TS-04305",loc:"Chambre 305",         marque:"Handicare",     type:"Double cuissarde",                taille:"M",  charge:"440 lb",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
+      {recordId:"recdeLvtrgNEBFIDe",num:"TS-04309",loc:"Chambre 309",         marque:"Guldmann",      type:"Double cuissarde",                taille:"L",  charge:"440 lb",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
+      {recordId:"receASiInzHsXwAHr",num:"TS-04314",loc:"Chambre 314",         marque:"Québec Médical",type:"Salle de bain",                   taille:"M",  charge:"440 lb",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
+      {recordId:"receIOjNL3VsPd9dK",num:"TS-04318",loc:"Chambre 318",         marque:"PRISM Medical", type:"Double cuissarde",                taille:"XXL",charge:"880 lb",statut:"Conforme",     issues:[],                                                        notes:"Patient bariatrique — vérifier état mensuellement",         photoCount:0},
+      {recordId:"receSNLAHwKclHOae",num:"TS-04322",loc:"Bain thérapeutique 3A",marque:"Guldmann",     type:"Toile hygiénique",                taille:"L",  charge:"440 lb",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
+      {recordId:"receYnn8qpoZUtNPu",num:"TS-03928",loc:"Chambre 320",         marque:"Arjo",          type:"Double cuissarde",                taille:"L",  charge:"440 lb",  statut:"Non conforme", issues:["Trou ou déchirure","Relâchement du tissu ou des coutures"],notes:"Déchirure 3 cm sur sangle gauche — à retirer immédiatement",photoCount:0},
+      {recordId:"recgR7ZYek0OM82KQ",num:"TS-04401",loc:"Chambre 401",         marque:"Arjo",          type:"À station debout/verticalisateur",taille:"L",  charge:"275 lb",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
+      {recordId:"recgcOjeKCQUtQORE",num:"TS-04405",loc:"Chambre 405",         marque:"Québec Médical",type:"Double cuissarde",                taille:"L",  charge:"440 lb",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
+      {recordId:"recjYkAyYJz8AQkXi",num:"TS-04409",loc:"Chambre 409",         marque:"Handicare",     type:"Double cuissarde",                taille:"M",  charge:"440 lb",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
+      {recordId:"recksjErOsv6HVoRB",num:"TS-03945",loc:"Chambre 408",         marque:"Handicare",     type:"Salle de bain",                   taille:"M",  charge:"440 lb",  statut:"Non conforme", issues:["Toile souillée (non nettoyable)"],                       notes:"Souillure incrustée après plusieurs lavages — remplacer",   photoCount:0},
+      {recordId:"recmsALfLNRJA1F26",num:"TS-04412",loc:"Chambre 412",         marque:"Québec Médical",type:"Toile hygiénique",                taille:"L",  charge:"440 lb",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
+      {recordId:"recmuLwS8DC4EFpEe",num:"TS-04418",loc:"Chambre 418",         marque:"Guldmann",      type:"Quick fit (toile universelle)",   taille:"L",  charge:"440 lb",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
+      {recordId:"recrzLHl8Po5S5rvM",num:"TS-03967",loc:"Bain thérapeutique 2A",marque:"Guldmann",     type:"Salle de bain",                   taille:"L",  charge:"660 lb",  statut:"Non conforme", issues:["Modèle illisible ou effacé","Taille illisible ou effacée"],notes:"Étiquette complètement effacée — non identifiable",        photoCount:0},
+      {recordId:"recsRsvX250rdZd73",num:"TS-04425",loc:"Salon Aile A",        marque:"Québec Médical",type:"Double cuissarde",                taille:"L",  charge:"440 lb",  statut:"Conforme",     issues:[],                                                        notes:"",                                                          photoCount:0},
+      {recordId:"recswISzUj4AK8Gaf",num:"TS-03982",loc:"Chambre 414",         marque:"Médi-Toile",    type:"Double cuissarde",                taille:"XL", charge:"660 lb", statut:"Non conforme", issues:["Sangles ou boucles abîmées","Effilochage"],              notes:"Sangle effilochée près de la boucle métallique",            photoCount:0},
+      {recordId:"recxeU7VV38gxIWFQ",num:"TS-04430",loc:"Réserve équipement",  marque:"Guldmann",      type:"Double cuissarde",                taille:"M",  charge:"440 lb",  statut:"Conforme",     issues:[],                                                        notes:"Toile neuve — mise en service avril 2026",                  photoCount:0},
+      {recordId:"recy5E0ndIww8GVqR",num:"TS-04001",loc:"Salle de physiothérapie",marque:"Arjo",       type:"À station debout/verticalisateur",taille:"M",  charge:"275 lb",  statut:"Non conforme", issues:["Relâchement du tissu ou des coutures"],                  notes:"Coutures distendues — sécurité compromise, hors service",   photoCount:0}
     ]
   };
 
