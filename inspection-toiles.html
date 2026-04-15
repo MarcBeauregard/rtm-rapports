@@ -1715,51 +1715,113 @@
 
     y = doc.lastAutoTable.finalY + 12;
 
-    // ── Section non-conformités + Guldmann ──
+    // ── Section non-conformités + recommandations de remplacement ──
     const ncs = submitted.filter(t => t.statut !== 'Conforme');
     if (ncs.length > 0) {
-      if (y > H - 55) { doc.addPage(); y = 20; }
+      if (y > H - 60) { doc.addPage(); y = 20; }
 
+      // En-tête de section
       doc.setFillColor(...navy);
-      doc.rect(10, y, W - 20, 9, 'F');
+      doc.rect(10, y, W - 20, 11, 'F');
+      doc.setFillColor(...red);
+      doc.rect(10, y, 3, 11, 'F');
       doc.setTextColor(...white);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
-      doc.text('TOILES NON CONFORMES — RECOMMANDATIONS DE REMPLACEMENT GULDMANN', 14, y + 6);
-      y += 13;
+      doc.setFontSize(9);
+      doc.text('RECOMMANDATIONS DE REMPLACEMENT', 16, y + 7);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
+      const countLabel = `${ncs.length} toile${ncs.length > 1 ? 's' : ''} non conforme${ncs.length > 1 ? 's' : ''}`;
+      doc.text(countLabel, W - 14, y + 7, { align: 'right' });
+      y += 16;
 
-      ncs.forEach(t => {
-        const issues   = t.issues.length > 0 ? t.issues.join(', ') : '—';
+      ncs.forEach((t, idx) => {
+        const num      = String(idx + 1).padStart(2, '0');
+        const issues   = t.issues.length > 0 ? t.issues.join(' · ') : 'Non spécifié';
         const rec      = getGuldmann(t.type);
-        const issLines = doc.splitTextToSize(`Points non-conformes : ${issues}`, W - 42);
-        const recLines = doc.splitTextToSize(`Remplacement suggéré : ${rec}`, W - 42);
-        const repLines = doc.splitTextToSize(`Demande de soumission : ${GULDMANN_REP}`, W - 42);
-        const cardH    = 8 + issLines.length * 4.2 + recLines.length * 4.2 + repLines.length * 4 + 12;
+        const issLines = doc.splitTextToSize(issues, W - 50);
+        const recLines = doc.splitTextToSize(rec, W - 50);
+
+        // Hauteurs des sections internes
+        const hHeader  = 11;          // bandeau titre toile
+        const hMeta    = 6;           // ligne Type/Taille/Marque
+        const hIssues  = 6 + issLines.length * 4.2 + 3;
+        const hRec     = 6 + recLines.length * 4.2 + 3;
+        const hContact = 8;
+        const cardH    = hHeader + hMeta + hIssues + hRec + hContact + 4;
 
         if (y + cardH > H - 22) { doc.addPage(); y = 20; }
 
-        doc.setFillColor(...redBg);
-        doc.roundedRect(10, y, W - 20, cardH, 2, 2, 'F');
+        // Carte avec ombre légère et fond blanc
+        doc.setFillColor(...white);
+        doc.roundedRect(10, y, W - 20, cardH, 2.5, 2.5, 'F');
+        doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.2);
+        doc.roundedRect(10, y, W - 20, cardH, 2.5, 2.5, 'S');
+        // Barre verticale rouge
         doc.setFillColor(...red);
         doc.rect(10, y, 3, cardH, 'F');
 
-        let cy = y + 7;
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...dark);
-        doc.text(`Toile ${t.num || '—'}${t.loc ? '  —  ' + t.loc : ''}`, 17, cy);
-        cy += 5;
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...muted);
-        doc.text(`Type : ${t.type || '—'}   ·   Taille : ${t.taille || '—'}   ·   Marque : ${t.marque || '—'}`, 17, cy);
-        cy += 5;
-        doc.setTextColor(...red);
-        doc.text(issLines, 17, cy);
-        cy += issLines.length * 4.2 + 2;
-        doc.setFont('helvetica', 'bold'); doc.setTextColor(...navy);
-        doc.text(recLines, 17, cy);
-        cy += recLines.length * 4.2 + 2;
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...muted);
-        doc.text(repLines, 17, cy);
+        // ── Bandeau titre (numéro + identification) ──
+        doc.setFillColor(...redBg);
+        doc.rect(13, y, W - 23, hHeader, 'F');
+        // Pastille numéro
+        doc.setFillColor(...red);
+        doc.circle(20, y + hHeader/2, 3.2, 'F');
+        doc.setTextColor(...white); doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
+        doc.text(num, 20, y + hHeader/2 + 1.2, { align: 'center' });
+        // Titre toile
+        doc.setTextColor(...dark); doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+        doc.text(`Toile ${t.num || '—'}`, 26, y + 7);
+        // Localisation à droite
+        if (t.loc) {
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...muted);
+          doc.text(`Local ${t.loc}`, W - 14, y + 7, { align: 'right' });
+        }
 
-        y += cardH + 5;
+        let cy = y + hHeader + 5;
+
+        // ── Ligne meta : Type · Taille · Marque ──
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...muted);
+        const metaParts = [];
+        if (t.type)   metaParts.push(`Type : ${t.type}`);
+        if (t.taille) metaParts.push(`Taille : ${t.taille}`);
+        if (t.marque) metaParts.push(`Marque : ${t.marque}`);
+        doc.text(metaParts.join('   ·   ') || '—', 17, cy);
+        cy += 4;
+
+        // Ligne séparatrice
+        doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.2);
+        doc.line(17, cy, W - 13, cy);
+        cy += 4;
+
+        // ── Bloc Non-conformités ──
+        doc.setFillColor(...red);
+        doc.circle(18.5, cy - 0.5, 0.9, 'F');
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...red);
+        doc.text('NON-CONFORMITÉS', 21, cy);
+        cy += 4;
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...dark);
+        doc.text(issLines, 21, cy);
+        cy += issLines.length * 4.2 + 3;
+
+        // ── Bloc Remplacement suggéré ──
+        doc.setFillColor(...navy);
+        doc.circle(18.5, cy - 0.5, 0.9, 'F');
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...navy);
+        doc.text('REMPLACEMENT SUGGÉRÉ', 21, cy);
+        cy += 4;
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...dark);
+        doc.text(recLines, 21, cy);
+        cy += recLines.length * 4.2 + 3;
+
+        // ── Pied de carte : contact pour soumission ──
+        doc.setFillColor(...bg);
+        doc.rect(13, y + cardH - hContact, W - 23, hContact, 'F');
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...muted);
+        doc.text('Demande de soumission :', 17, y + cardH - hContact + 5);
+        doc.setFont('helvetica', 'bold'); doc.setTextColor(...navy);
+        doc.text(GULDMANN_REP, 52, y + cardH - hContact + 5);
+
+        y += cardH + 4;
       });
     }
 
