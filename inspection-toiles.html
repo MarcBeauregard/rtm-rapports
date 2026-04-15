@@ -584,7 +584,7 @@
     <div class="step" id="step-2">
       <div class="step-q">Quel établissement ?</div>
       <div class="step-hint">Ne sera demandé qu'une fois par session</div>
-      <input class="field" id="f-etab" type="text" placeholder="Ex : CHSLD Sainte-Marie" autocomplete="off" inputmode="text" oninput="filterEtabSuggestions()">
+      <input class="field" id="f-etab" type="text" placeholder="Ex : CHSLD Sainte-Marie" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" inputmode="text" oninput="filterEtabSuggestions()">
       <div class="quick-picks-label" id="etabRecentLabel" style="display:none">Actifs aujourd'hui</div>
       <div class="quick-picks" id="etabRecentPicks"></div>
     </div>
@@ -592,13 +592,13 @@
     <div class="step" id="step-3">
       <div class="step-q">Numéro de toile</div>
       <div class="step-hint">Identifiant de la toile inspectée</div>
-      <input class="field" id="f-num" type="text" placeholder="Ex : T-2024-001" autocomplete="off" inputmode="text">
+      <input class="field" id="f-num" type="text" placeholder="Ex : T-2024-001" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" inputmode="text">
     </div>
 
     <div class="step" id="step-4">
       <div class="step-q">Localisation</div>
       <div class="step-hint">Chambre, salle ou emplacement précis</div>
-      <input class="field" id="f-loc" type="text" placeholder="Ex : Chambre 214, Salle de bain A" autocomplete="off" inputmode="text" oninput="filterLocSuggestions()">
+      <input class="field" id="f-loc" type="text" placeholder="Ex : Chambre 214, Salle de bain A" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" inputmode="text" oninput="filterLocSuggestions()">
       <div class="quick-picks">
         <button class="quick-pick" onclick="pickLoc('Inconnu')">Inconnu</button>
       </div>
@@ -611,7 +611,7 @@
       <div class="step-hint">Sélectionnez ou entrez le fabricant</div>
       <div class="choice-grid" id="marque-grid"></div>
       <div class="custom-input-wrap" id="marque-custom">
-        <input class="field" id="marque-custom-input" type="text" placeholder="Nom du fabricant" inputmode="text">
+        <input class="field" id="marque-custom-input" type="text" placeholder="Nom du fabricant" inputmode="text" autocorrect="off" autocapitalize="words" spellcheck="false">
         <button class="btn-confirm" onclick="confirmCustom('marque')">OK</button>
       </div>
     </div>
@@ -621,7 +621,7 @@
       <div class="step-hint">Sélectionnez ou entrez le type</div>
       <div class="choice-grid" id="type-grid"></div>
       <div class="custom-input-wrap" id="type-custom">
-        <input class="field" id="type-custom-input" type="text" placeholder="Précisez le type" inputmode="text">
+        <input class="field" id="type-custom-input" type="text" placeholder="Précisez le type" inputmode="text" autocorrect="off" autocapitalize="sentences" spellcheck="false">
         <button class="btn-confirm" onclick="confirmCustom('type')">OK</button>
       </div>
     </div>
@@ -631,7 +631,7 @@
       <div class="step-hint">Sélectionnez la taille indiquée sur la toile</div>
       <div class="choice-grid" id="taille-grid"></div>
       <div class="custom-input-wrap" id="taille-custom">
-        <input class="field" id="taille-custom-input" type="text" placeholder="Précisez la taille" inputmode="text">
+        <input class="field" id="taille-custom-input" type="text" placeholder="Précisez la taille" inputmode="text" autocorrect="off" autocapitalize="characters" spellcheck="false">
         <button class="btn-confirm" onclick="confirmCustom('taille')">OK</button>
       </div>
     </div>
@@ -641,7 +641,7 @@
       <div class="step-hint">Capacité indiquée sur l'étiquette de la toile</div>
       <div class="choice-grid" id="charge-grid"></div>
       <div class="custom-input-wrap" id="charge-custom">
-        <input class="field" id="charge-custom-input" type="text" placeholder="Ex : 350 lb" inputmode="text">
+        <input class="field" id="charge-custom-input" type="text" placeholder="Ex : 350 lb" inputmode="text" autocorrect="off" autocapitalize="none" spellcheck="false">
         <button class="btn-confirm" onclick="confirmCustom('charge')">OK</button>
       </div>
     </div>
@@ -734,7 +734,7 @@
     </div>
     <div class="photo-desc-label">Description (optionnel)</div>
     <input class="photo-desc-input" id="photoDescInput" type="text"
-           placeholder="Ex : déchirure, effilochage…" inputmode="text" autocomplete="off">
+           placeholder="Ex : déchirure, effilochage…" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false">
     <div class="photo-modal-actions">
       <button class="btn-photo-cancel"  onclick="cancelPhoto()">Annuler</button>
       <button class="btn-photo-confirm" onclick="confirmPhoto()">Ajouter la photo</button>
