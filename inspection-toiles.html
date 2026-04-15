@@ -584,7 +584,9 @@
     <div class="step" id="step-2">
       <div class="step-q">Quel établissement ?</div>
       <div class="step-hint">Ne sera demandé qu'une fois par session</div>
-      <input class="field" id="f-etab" type="text" placeholder="Ex : CHSLD Sainte-Marie" autocomplete="off" inputmode="text">
+      <input class="field" id="f-etab" type="text" placeholder="Ex : CHSLD Sainte-Marie" autocomplete="off" inputmode="text" oninput="filterEtabSuggestions()">
+      <div class="quick-picks-label" id="etabRecentLabel" style="display:none">Actifs aujourd'hui</div>
+      <div class="quick-picks" id="etabRecentPicks"></div>
     </div>
 
     <div class="step" id="step-3">
@@ -815,6 +817,12 @@
   let editingIdx = null;
   let photos     = []; // { file, dataUrl, description }
   let pendingFile = null, pendingDataUrl = null;
+  // Cache des toiles créées aujourd'hui (tous établissements, tous techniciens).
+  // Permet de (1) suggérer les établissements actifs du jour en quick-pick et
+  // (2) importer automatiquement les toiles déjà faites à l'établissement choisi
+  // — donc un 2e technicien qui rejoint une inspection voit le travail de son collègue.
+  let todayRecords = []; // [{ recordId, createdTime, num, loc, marque, type, taille, statut, issues, notes, tech, etab, photoCount }]
+  let todayFetchDone = false;
 
   function freshData() {
     return { num:'', loc:'', marque:'', type:'', taille:'', statut:'', issues:[], notes:'' };
@@ -1253,6 +1261,7 @@
       btnNext.textContent = 'Continuer →';
       btnNext.className   = 'btn btn-next';
     }
+    if (n === 2) renderEtabSuggestions();
     if (n === 4) renderLocSuggestions();
     if (n === 5) buildChoiceGrid('marque');
     if (n === 6) buildChoiceGrid('type');
@@ -1389,6 +1398,13 @@
     if (step===2) {
       session.etab = document.getElementById('f-etab').value.trim();
       sessionStartStep = 3;
+      // Import automatique des toiles déjà inspectées aujourd'hui à cet
+      // établissement (peu importe le technicien, peu importe l'appareil).
+      const imported = mergeTodayEntriesForEtab(session.etab);
+      if (imported > 0) {
+        updateCounter();
+        showToast(`${imported} toile${imported>1?'s':''} déjà inspectée${imported>1?'s':''} aujourd'hui à ${session.etab} — ajoutée${imported>1?'s':''} à votre rapport.`, 5500);
+      }
       saveSession();
     }
     if (step===3) d.num   = document.getElementById('f-num').value.trim();
@@ -1861,6 +1877,127 @@
     }
   });
 
+  // ─── FETCH "AUJOURD'HUI" (cross-device) ─────────────────
+  // Charge tous les records créés aujourd'hui via le Worker. Permet à n'importe
+  // quel technicien, sur n'importe quel appareil, de voir les toiles déjà
+  // inspectées par un collègue au même établissement dans la journée.
+  // Mapping des fieldId → clé d'entrée submitted[] (stable même si on renomme
+  // les colonnes Airtable, car on utilise returnFieldsByFieldId=true).
+  const FID = {
+    num:    'fldBZNe6mARq0SLZ8',
+    marque: 'fldBOdsEZFGQNFVYp',
+    type:   'fldQgo1whkDApOjUk',
+    statut: 'fldi8y4qz1OENgrgX',
+    issues: 'fldH4H3FuGXkvRv1A',
+    tech:   'fld5xiV0zru9ZuFjO',
+    etab:   'fldk7N7xCbFjgyET0',
+    loc:    'fldF9NvcoUUJI98aZ',
+    taille: 'fldKJcKNQGaepnLc7',
+    notes:  'fldA3JyCCd7LVCcy4',
+  };
+  function parseAirtableRecord(r) {
+    const f = r.fields || {};
+    const pickName = v => v && typeof v === 'object' ? v.name : (v || '');
+    const issues   = Array.isArray(f[FID.issues]) ? f[FID.issues].map(pickName) : [];
+    return {
+      recordId:    r.id,
+      createdTime: r.createdTime || '',
+      num:    f[FID.num]    || '',
+      marque: f[FID.marque] || '',
+      type:   pickName(f[FID.type]),
+      taille: pickName(f[FID.taille]),
+      statut: pickName(f[FID.statut]),
+      issues,
+      loc:    f[FID.loc]    || '',
+      notes:  f[FID.notes]  || '',
+      tech:   f[FID.tech]   || '',
+      etab:   f[FID.etab]   || '',
+      photoCount: 0,
+    };
+  }
+  async function fetchTodayRecords() {
+    if (todayFetchDone) return todayRecords;
+    if (!navigator.onLine) { todayFetchDone = true; return todayRecords; }
+    try {
+      const res = await fetch(`${API_BASE}/records/today`, { method: 'GET' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const json = await res.json();
+      const recs = Array.isArray(json.records) ? json.records : [];
+      todayRecords = recs.map(parseAirtableRecord);
+    } catch (e) {
+      console.warn('fetchTodayRecords a échoué :', e);
+      // On ne bloque pas le flux : le technicien peut continuer manuellement.
+    } finally {
+      todayFetchDone = true;
+    }
+    return todayRecords;
+  }
+
+  // Liste unique des établissements actifs aujourd'hui, triée par fréquence.
+  function getTodayEtabs(filter) {
+    const counts = new Map();
+    for (const r of todayRecords) {
+      if (!r.etab) continue;
+      counts.set(r.etab, (counts.get(r.etab) || 0) + 1);
+    }
+    let list = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(x => x[0]);
+    if (filter) {
+      const f = filter.toLowerCase();
+      list = list.filter(x => x.toLowerCase().includes(f));
+    }
+    return list;
+  }
+  function renderEtabSuggestions() {
+    const wrap  = document.getElementById('etabRecentPicks');
+    const label = document.getElementById('etabRecentLabel');
+    const input = document.getElementById('f-etab');
+    const list  = getTodayEtabs((input.value || '').trim());
+    wrap.innerHTML = '';
+    list.slice(0, 6).forEach(e => {
+      const b = document.createElement('button');
+      b.className = 'quick-pick recent';
+      b.textContent = e;
+      b.type = 'button';
+      b.onclick = () => pickEtab(e);
+      wrap.appendChild(b);
+    });
+    const show = list.length > 0;
+    label.style.display = show ? 'block' : 'none';
+    wrap.style.display  = show ? 'flex'  : 'none';
+  }
+  function filterEtabSuggestions() { renderEtabSuggestions(); }
+  function pickEtab(val) {
+    document.getElementById('f-etab').value = val;
+    clearError();
+    next();
+  }
+
+  // Fusionne dans submitted[] les toiles d'aujourd'hui de l'établissement choisi
+  // (en évitant les doublons par recordId). Appelé au passage step 2 → 3.
+  function mergeTodayEntriesForEtab(etab) {
+    if (!etab) return 0;
+    const existing = new Set(submitted.map(e => e.recordId).filter(Boolean));
+    const matching = todayRecords
+      .filter(r => r.etab === etab && !existing.has(r.recordId))
+      // Plus anciennes en premier (ordre chronologique des inspections)
+      .sort((a, b) => (a.createdTime || '').localeCompare(b.createdTime || ''));
+    for (const r of matching) {
+      submitted.push({
+        recordId:   r.recordId,
+        num:        r.num,
+        loc:        r.loc,
+        marque:     r.marque,
+        type:       r.type,
+        taille:     r.taille,
+        statut:     r.statut,
+        issues:     [...r.issues],
+        notes:      r.notes,
+        photoCount: r.photoCount || 0,
+      });
+    }
+    return matching.length;
+  }
+
   // ─── SEED (simulation CHSLD Biermans) ────────────────────
   // Permet de charger un jeu de 32 toiles déjà saisies aujourd'hui via
   // ?seed=biermans — utile pour consulter/envoyer le rapport depuis l'iPhone.
@@ -1922,6 +2059,22 @@
 
   // ─── INIT ───────────────────────────────────────────────
   // Priorité : ?seed=biermans (simulation) > restauration session du jour.
+  // Le fetch des toiles du jour est lancé en tâche de fond pour être prêt au
+  // step 2 (quick-picks d'établissements + import auto des toiles déjà faites).
+  fetchTodayRecords().then(() => {
+    // Si on est déjà au step 2 au moment où les données arrivent, rafraîchir.
+    if (step === 2) renderEtabSuggestions();
+    // Si la session a déjà été restaurée (tech + etab), fusionner les toiles
+    // ajoutées par d'autres appareils entre-temps.
+    if (session.etab && step >= 3) {
+      const imported = mergeTodayEntriesForEtab(session.etab);
+      if (imported > 0) {
+        updateCounter();
+        saveSession();
+        showToast(`+${imported} toile${imported>1?'s':''} ajoutée${imported>1?'s':''} depuis un autre appareil.`, 5000);
+      }
+    }
+  });
   (function initApp() {
     const params = new URLSearchParams(location.search);
     const seedName = params.get('seed');
