@@ -884,8 +884,13 @@
   // ─── CONFIG ─────────────────────────────────────────────
   // Toutes les requêtes Airtable passent désormais par ce Worker
   // (le token Airtable n'est PLUS dans cette page).
-  const API_BASE        = 'https://rtm-airtable-proxy.marc-beauregard.workers.dev';
-  const PHOTOS_FIELD_ID = 'fldiywgyw1vZgtIoB';
+  const API_BASE            = 'https://rtm-airtable-proxy.marc-beauregard.workers.dev';
+  const PHOTOS_FIELD_ID     = 'fldiywgyw1vZgtIoB';
+  // Champ dédié où l'on archive la photo source utilisée par l'OCR. Sépare
+  // de PHOTOS_FIELD_ID pour permettre une contre-validation manuelle rapide :
+  // on peut comparer la valeur auto-remplie (num_serie, marque, taille, etc.)
+  // avec la photo réelle de l'étiquette sans fouiller dans les photos libres.
+  const OCR_PHOTO_FIELD_ID  = 'fldViADfpzTLBQI6v';
   const DEFAULT_TYPES   = ['Salle de bain', 'Double cuissarde'];
   const DEFAULT_TAILLES = ['S', 'M', 'L', 'XL', 'XXL'];
   const DEFAULT_CHARGES = ['175 lb', '275 lb', '440 lb', '660 lb', '880 lb'];
@@ -898,6 +903,11 @@
   let submitted  = [];
   let editingIdx = null;
   let photos     = []; // { file, dataUrl, description }
+  // Photo source du dernier scan OCR. Conservée jusqu'au prochain
+  // submit/reset/nextToile pour qu'on puisse l'archiver dans Airtable
+  // à des fins de contre-validation humaine (voir OCR_PHOTO_FIELD_ID).
+  // Structure : { dataUrl, filename } ou null.
+  let ocrPhoto   = null;
   let pendingFile = null, pendingDataUrl = null;
   // Cache des toiles créées aujourd'hui (tous établissements, tous techniciens).
   // Permet de (1) suggérer les établissements actifs du jour en quick-pick et
@@ -1133,6 +1143,11 @@
               } catch(e) { console.warn('Photo upload (queue) failed:', e); }
             }
           }
+          // Photo étiquette OCR (archivage pour contre-validation)
+          if (cur.ocrPhoto && cur.ocrPhoto.dataUrl) {
+            try { await uploadOcrPhoto(json.id, cur.ocrPhoto); }
+            catch(e) { console.warn('OCR photo upload (queue) failed:', e); }
+          }
           // Succès → retirer
           const rest = getQueue().slice(1);
           setQueue(rest);
@@ -1286,6 +1301,25 @@
     }
   }
 
+  // Archive la photo OCR sur le record Airtable (contre-validation humaine
+  // des valeurs auto-remplies). `photo` doit avoir la forme { dataUrl, filename }
+  // – même structure que celles utilisées par la file d'attente hors-ligne,
+  // ce qui permet de réutiliser cette fonction dans flushQueue.
+  async function uploadOcrPhoto(recordId, photo) {
+    if (!photo || !photo.dataUrl) return;
+    const file = dataUrlToFile(photo.dataUrl, photo.filename || 'etiquette-OCR.jpg');
+    const form = new FormData();
+    form.append('file', file, photo.filename || 'etiquette-OCR.jpg');
+    form.append('filename', photo.filename || 'etiquette-OCR.jpg');
+    form.append('contentType', file.type);
+    try {
+      await fetch(
+        `${API_BASE}/uploadAttachment/${recordId}/${OCR_PHOTO_FIELD_ID}`,
+        { method:'POST', body: form }
+      );
+    } catch(e) { console.warn('OCR photo upload failed:', e); }
+  }
+
   // ─── HISTORY ────────────────────────────────────────────
   function showHistory() {
     renderHistory();
@@ -1328,6 +1362,10 @@
           taille:entry.taille || '', charge:entry.charge || '',
           statut:entry.statut, issues:[...entry.issues], notes:entry.notes || '' };
     photos = [];
+    // Repartir sans photo OCR locale : si le tech re-scanne durant l'édit,
+    // la nouvelle photo sera ajoutée au record existant (champ est multiple-
+    // Attachments donc ça s'empile sans écraser).
+    ocrPhoto = null;
     refreshPhotoUI();
     document.getElementById('f-num').value   = d.num;
     document.getElementById('f-loc').value   = d.loc;
@@ -1583,6 +1621,12 @@
     setScanStatus('📸 Traitement de la photo…', false);
     try {
       const dataUrl = await resizeImageForOcr(file, 1600, 0.85);
+      // Archive la photo avant même l'appel OCR : même si Claude Haiku se
+      // trompe ou renvoie du vide, on veut pouvoir archiver l'image pour
+      // que le tech puisse compléter à la main tout en gardant une trace
+      // visuelle de l'étiquette.
+      const ts = new Date().toISOString().replace(/[:.]/g,'-');
+      ocrPhoto = { dataUrl, filename: `etiquette-OCR-${ts}.jpg` };
       setScanStatus('🧠 Lecture de l\'étiquette en cours…', false);
       const res = await fetch(API_BASE + '/ocr', {
         method: 'POST',
@@ -1879,7 +1923,7 @@
         dataUrl: p.dataUrl,
         filename: (p.description ? p.description : `Photo_${String(i+1).padStart(2,'0')}`) + '.jpg'
       }));
-      enqueue({ fields, photos: photosForQueue, ts: Date.now() });
+      enqueue({ fields, photos: photosForQueue, ocrPhoto: ocrPhoto || null, ts: Date.now() });
       finalizeSuccess('queued_' + Date.now(), true);
       return;
     }
@@ -1900,6 +1944,10 @@
         btn.textContent = `Upload photos (${photos.length})…`;
         await uploadPhotos(json.id);
       }
+      if (ocrPhoto) {
+        btn.textContent = 'Upload photo étiquette OCR…';
+        await uploadOcrPhoto(json.id, ocrPhoto);
+      }
 
       finalizeSuccess(json.id, false);
     } catch(err) {
@@ -1910,7 +1958,7 @@
           dataUrl: p.dataUrl,
           filename: (p.description ? p.description : `Photo_${String(i+1).padStart(2,'0')}`) + '.jpg'
         }));
-        enqueue({ fields, photos: photosForQueue, ts: Date.now() });
+        enqueue({ fields, photos: photosForQueue, ocrPhoto: ocrPhoto || null, ts: Date.now() });
         finalizeSuccess('queued_' + Date.now(), true);
       } else {
         btn.textContent = isEdit ? 'Enregistrer les modifications' : '✓ Envoyer';
@@ -1922,7 +1970,7 @@
 
   // ─── NEXT TOILE ─────────────────────────────────────────
   function nextToile() {
-    d = freshData(); editingIdx = null; photos = []; step = 3;
+    d = freshData(); editingIdx = null; photos = []; ocrPhoto = null; step = 3;
     document.querySelectorAll('.choice-btn').forEach(b=>b.classList.remove('selected'));
     document.querySelectorAll('.status-btn').forEach(b=>b.classList.remove('dim'));
     resetChecklistUI();
@@ -1939,7 +1987,7 @@
   function resetSession() {
     clearSession();
     session = { tech:'', etab:'' }; sessionStartStep = 1;
-    d = freshData(); step = 1; submitted = []; editingIdx = null; photos = [];
+    d = freshData(); step = 1; submitted = []; editingIdx = null; photos = []; ocrPhoto = null;
     document.querySelectorAll('.choice-btn').forEach(b=>b.classList.remove('selected'));
     document.querySelectorAll('.status-btn').forEach(b=>b.classList.remove('dim'));
     resetChecklistUI();
