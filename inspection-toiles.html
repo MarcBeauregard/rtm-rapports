@@ -240,6 +240,44 @@
       100% { transform: scale(1);    box-shadow: 0 0 0 0   rgba(14, 51, 120, 0);    }
     }
     .choice-btn.pulse, .status-btn.pulse { animation: pickPulse .42s ease-out; }
+
+    /* ─── SCAN ÉTIQUETTE ─── */
+    .btn-scan {
+      width: 100%;
+      padding: 18px 20px;
+      margin-bottom: 14px;
+      background: linear-gradient(135deg, var(--navy) 0%, #1a4d8f 100%);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 17px; font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      box-shadow: 0 4px 14px rgba(14, 51, 120, 0.25);
+      transition: transform .15s, box-shadow .15s;
+      user-select: none;
+    }
+    .btn-scan:active { transform: scale(.97); box-shadow: 0 2px 8px rgba(14, 51, 120, 0.2); }
+    .btn-scan[disabled] { opacity: .6; cursor: wait; }
+    .btn-scan .scan-icon { font-size: 22px; }
+    .scan-divider {
+      display: flex; align-items: center; gap: 10px;
+      margin: 4px 0 14px;
+      color: var(--text-muted); font-size: 13px; font-weight: 500;
+    }
+    .scan-divider::before, .scan-divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+    .scan-status {
+      margin-bottom: 12px; padding: 12px 14px;
+      background: var(--cyan-light); border-radius: 10px;
+      font-size: 14px; color: var(--navy); font-weight: 500;
+      display: none;
+    }
+    .scan-status.show { display: block; }
+    .scan-status.error { background: var(--danger-light); color: var(--danger); }
+
     .custom-input-wrap { display: none; margin-top: 10px; }
     .custom-input-wrap.show { display: flex; gap: 8px; align-items: flex-end; }
     .custom-input-wrap .field { font-size: 16px; margin: 0; }
@@ -598,6 +636,15 @@
     <div class="step" id="step-3">
       <div class="step-q">Numéro de toile</div>
       <div class="step-hint">Identifiant de la toile inspectée</div>
+
+      <button type="button" class="btn-scan" id="btnScanEtiquette" onclick="triggerScan()">
+        <span class="scan-icon">📷</span>
+        <span>Scanner l'étiquette</span>
+      </button>
+      <input type="file" id="scanInput" accept="image/*" capture="environment" style="display:none" onchange="onScanFile(event)">
+      <div class="scan-status" id="scanStatus"></div>
+      <div class="scan-divider">ou saisir à la main</div>
+
       <input class="field" id="f-num" type="text" placeholder="Ex : T-2024-001" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" inputmode="text">
       <div class="quick-picks-label" id="cloneLabel" style="display:none">Gagner du temps</div>
       <div class="quick-picks" id="cloneWrap"></div>
@@ -1335,7 +1382,7 @@
     if (n === 8) buildChoiceGrid('charge');
     clearError();
     updateProgress(); updateHeader(); updatePhotoBar();
-    const inp = document.getElementById('step-'+n).querySelector('input:not([id$="-custom-input"]), textarea');
+    const inp = document.getElementById('step-'+n).querySelector('input:not([id$="-custom-input"]):not([type="file"]), textarea');
     if (inp) setTimeout(() => inp.focus(), 300);
   }
 
@@ -1510,6 +1557,155 @@
     else        { document.getElementById('f-num').focus(); }
     showToast(newNum ? `Copie + ${newNum} — vérifie la localisation.` : 'Détails copiés — entre le N° de toile.', 2800);
   }
+
+  // ─── OCR ÉTIQUETTE (Claude Haiku Vision via Worker) ─────
+  // Flux : bouton → input caméra → resize client → POST /ocr → auto-fill.
+  // L'objectif : 3-5 champs remplis en une seule photo (num, marque, type,
+  // taille, charge). Le tech passe ensuite en revue chaque choix étape par
+  // étape : aucun champ n'est « verrouillé », tout reste éditable.
+  function triggerScan() {
+    haptic(10);
+    document.getElementById('scanInput').value = '';
+    document.getElementById('scanInput').click();
+  }
+  function setScanStatus(msg, isError) {
+    const el = document.getElementById('scanStatus');
+    if (!msg) { el.classList.remove('show'); el.textContent = ''; return; }
+    el.textContent = msg;
+    el.classList.toggle('error', !!isError);
+    el.classList.add('show');
+  }
+  async function onScanFile(ev) {
+    const file = ev.target.files && ev.target.files[0];
+    if (!file) return;
+    const btn = document.getElementById('btnScanEtiquette');
+    btn.setAttribute('disabled', 'disabled');
+    setScanStatus('📸 Traitement de la photo…', false);
+    try {
+      const dataUrl = await resizeImageForOcr(file, 1600, 0.85);
+      setScanStatus('🧠 Lecture de l\'étiquette en cours…', false);
+      const res = await fetch(API_BASE + '/ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: dataUrl }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setScanStatus('Échec OCR : ' + (json.error || res.status) + ' — saisis à la main.', true);
+        return;
+      }
+      applyOcrResult(json);
+    } catch (e) {
+      console.error('[OCR]', e);
+      setScanStatus('Erreur réseau — saisis à la main. (' + e.message + ')', true);
+    } finally {
+      btn.removeAttribute('disabled');
+    }
+  }
+  // Réduit l'image côté client avant envoi (économie data + latence OCR).
+  // 1600 px max sur le grand côté, JPEG qualité 0.85 — lisible pour Claude
+  // Haiku Vision tout en restant sous ~300 Ko typiquement.
+  function resizeImageForOcr(file, maxDim, quality) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const reader = new FileReader();
+      reader.onload = () => { img.src = reader.result; };
+      reader.onerror = () => reject(new Error('lecture fichier'));
+      img.onload = () => {
+        let { width, height } = img;
+        const scale = Math.min(1, maxDim / Math.max(width, height));
+        width  = Math.round(width  * scale);
+        height = Math.round(height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => reject(new Error('décodage image'));
+      reader.readAsDataURL(file);
+    });
+  }
+  // Mappe une valeur libre retournée par l'OCR vers une valeur canonique
+  // connue (DEFAULT_TYPES, DEFAULT_TAILLES, DEFAULT_CHARGES). Retourne la
+  // valeur exacte si déjà canonique, ou la meilleure correspondance sinon,
+  // ou la valeur brute (qui sera enregistrée comme custom).
+  function canonMatch(val, pool) {
+    if (!val) return '';
+    const v = String(val).trim();
+    if (!v) return '';
+    const low = v.toLowerCase();
+    const exact = pool.find(p => p.toLowerCase() === low);
+    if (exact) return exact;
+    const partial = pool.find(p => low.includes(p.toLowerCase()) || p.toLowerCase().includes(low));
+    return partial || v;
+  }
+  function applyOcrResult(r) {
+    // Compteur de champs remplis pour le feedback.
+    const filled = [];
+
+    // N° de série → f-num + d.num
+    if (r.num_serie) {
+      d.num = String(r.num_serie).trim();
+      document.getElementById('f-num').value = d.num;
+      filled.push('N°');
+    }
+
+    // Marque : aucune liste canon (libre) → on enregistre tel quel en custom.
+    if (r.marque) {
+      d.marque = String(r.marque).trim();
+      addCustomEntry('marque', d.marque);
+      filled.push('marque');
+    }
+
+    // Type : liste canonique + on ajoute en custom si inconnu.
+    if (r.type) {
+      const t = canonMatch(r.type, DEFAULT_TYPES);
+      d.type = t;
+      if (!DEFAULT_TYPES.includes(t)) addCustomEntry('type', t);
+      filled.push('type');
+    }
+
+    // Taille : liste canonique.
+    if (r.taille) {
+      const s = canonMatch(r.taille, DEFAULT_TAILLES);
+      d.taille = s;
+      if (!DEFAULT_TAILLES.includes(s)) addCustomEntry('taille', s);
+      filled.push('taille');
+    }
+
+    // Charge maximale : normalise « 440lb »/« 440 LB » → « 440 lb ».
+    if (r.charge_max) {
+      let c = String(r.charge_max).trim().replace(/\s*lb\s*$/i, ' lb').replace(/\s*kg\s*$/i, ' kg');
+      const cc = canonMatch(c, DEFAULT_CHARGES);
+      d.charge = cc;
+      if (!DEFAULT_CHARGES.includes(cc)) addCustomEntry('charge', cc);
+      filled.push('charge');
+    }
+
+    if (filled.length === 0) {
+      setScanStatus('Aucun champ lisible — essaie une autre photo ou saisis à la main.', true);
+      haptic(30);
+      return;
+    }
+
+    // ⚠ validation croisée type/charge immédiate
+    const warn = (typeof chargeTypeWarning === 'function') ? chargeTypeWarning(d.type, d.charge) : null;
+
+    haptic(20);
+    setScanStatus('✓ ' + filled.length + ' champ(s) rempli(s) : ' + filled.join(', ') + '. Vérifie à chaque étape.', false);
+    showToast('Étiquette scannée : ' + filled.join(' · '), 3200);
+    if (warn) {
+      setTimeout(() => showToast('⚠ ' + warn, 4200), 1100);
+    }
+
+    // On reste sur l'étape N° de toile pour que le tech valide le numéro.
+    // Si un numéro a été extrait, on peut focus le champ pour édition rapide.
+    if (d.num) {
+      setTimeout(() => document.getElementById('f-num').focus(), 50);
+    }
+  }
+
   function showCustomInput(field) {
     document.getElementById(field+'-custom').classList.add('show');
     setTimeout(() => document.getElementById(field+'-custom-input').focus(), 100);
