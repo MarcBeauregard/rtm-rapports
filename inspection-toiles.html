@@ -234,6 +234,12 @@
     .choice-btn:active { background: #eef2f7; }
     .choice-btn.selected { border-color: var(--navy); background: var(--cyan-light); color: var(--navy); }
     .choice-btn.add-btn  { border-style: dashed; color: var(--text-muted); font-weight: 500; background: var(--white); }
+    @keyframes pickPulse {
+      0%   { transform: scale(1);    box-shadow: 0 0 0 0   rgba(14, 51, 120, 0.35); }
+      40%  { transform: scale(1.04); box-shadow: 0 0 0 10px rgba(14, 51, 120, 0);    }
+      100% { transform: scale(1);    box-shadow: 0 0 0 0   rgba(14, 51, 120, 0);    }
+    }
+    .choice-btn.pulse, .status-btn.pulse { animation: pickPulse .42s ease-out; }
     .custom-input-wrap { display: none; margin-top: 10px; }
     .custom-input-wrap.show { display: flex; gap: 8px; align-items: flex-end; }
     .custom-input-wrap .field { font-size: 16px; margin: 0; }
@@ -593,6 +599,8 @@
       <div class="step-q">Numéro de toile</div>
       <div class="step-hint">Identifiant de la toile inspectée</div>
       <input class="field" id="f-num" type="text" placeholder="Ex : T-2024-001" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" inputmode="text">
+      <div class="quick-picks-label" id="cloneLabel" style="display:none">Gagner du temps</div>
+      <div class="quick-picks" id="cloneWrap"></div>
     </div>
 
     <div class="step" id="step-4">
@@ -1319,6 +1327,7 @@
       btnNext.className   = 'btn btn-next';
     }
     if (n === 2) renderEtabSuggestions();
+    if (n === 3) renderCloneSuggestions();
     if (n === 4) renderLocSuggestions();
     if (n === 5) buildChoiceGrid('marque');
     if (n === 6) buildChoiceGrid('type');
@@ -1406,11 +1415,100 @@
     el.addEventListener('contextmenu', (e) => e.preventDefault());
   }
   function pickChoice(field, val, el) {
+    haptic(8);
     d[field] = val;
     document.querySelectorAll('#'+field+'-grid .choice-btn').forEach(b=>b.classList.remove('selected'));
     el.classList.add('selected');
+    el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse');
     document.getElementById(field+'-custom').classList.remove('show');
-    setTimeout(next, 300);
+    // Validation croisée type/charge : avertit si la combinaison est inhabituelle
+    // sans bloquer la progression (le tech peut toujours continuer).
+    const warn = chargeTypeWarning(d.type, d.charge);
+    const delay = warn ? 600 : 300;
+    if (warn) { haptic(25); showToast('⚠ ' + warn, 3500); }
+    setTimeout(next, delay);
+  }
+
+  // Retourne un message d'avertissement si la combinaison type/charge est aberrante,
+  // null sinon. Basé sur des plages typiques de l'industrie.
+  function chargeTypeWarning(type, charge) {
+    if (!type || !charge) return null;
+    const lb = parseInt(String(charge).replace(/[^\d]/g,''), 10);
+    if (!lb || isNaN(lb)) return null;
+    const t = type.toLowerCase();
+    // Verticalisateur : rarement au-delà de 400 lb
+    if (t.includes('station debout') || t.includes('verticalisateur')) {
+      if (lb >= 660) return `${charge} est élevé pour un verticalisateur (typ. 275-440 lb).`;
+    }
+    // Toiles de transfert standard : rarement en-dessous de 275 lb
+    if ((t.includes('cuissarde') || t.includes('quick fit') || t.includes('salle de bain') || t.includes('hygi')) && lb < 275) {
+      return `${charge} est faible pour ce type de toile (typ. 440+ lb).`;
+    }
+    return null;
+  }
+
+  // ─── HAPTIC + CLONE ─────────────────────────────────────
+  function haptic(ms = 10) { if (navigator.vibrate) navigator.vibrate(ms); }
+
+  // Suggère de cloner les données (marque/type/taille/charge) de la toile précédente
+  // ou d'incrémenter le N° de série pour le même équipement voisin.
+  function renderCloneSuggestions() {
+    const wrap  = document.getElementById('cloneWrap');
+    const label = document.getElementById('cloneLabel');
+    wrap.innerHTML = '';
+    if (editingIdx !== null || submitted.length === 0) {
+      wrap.style.display = 'none'; label.style.display = 'none'; return;
+    }
+    const prev = submitted[submitted.length - 1];
+    const sub = [prev.marque, prev.type, prev.taille, prev.charge].filter(Boolean).join(' · ');
+    // 1) Bouton « Comme la précédente » (copie tout sauf le N°)
+    const b1 = document.createElement('button');
+    b1.className = 'quick-pick recent';
+    b1.type = 'button';
+    b1.innerHTML = `<span style="font-weight:600">↻ Comme la précédente</span><br><span style="font-size:12px; opacity:0.75">${sub || 'pas de détails'}</span>`;
+    b1.style.textAlign = 'left';
+    b1.style.lineHeight = '1.3';
+    b1.onclick = () => cloneFromPrev(prev, false);
+    wrap.appendChild(b1);
+    // 2) Bouton « +1 » (incrémente le N° numérique si détecté)
+    const next = bumpSerial(prev.num);
+    if (next) {
+      const b2 = document.createElement('button');
+      b2.className = 'quick-pick recent';
+      b2.type = 'button';
+      b2.innerHTML = `<span style="font-weight:600">+1 · ${next}</span><br><span style="font-size:12px; opacity:0.75">copie + incrémente</span>`;
+      b2.style.textAlign = 'left';
+      b2.style.lineHeight = '1.3';
+      b2.onclick = () => cloneFromPrev(prev, next);
+      wrap.appendChild(b2);
+    }
+    wrap.style.display = 'flex'; label.style.display = 'block';
+  }
+  // Incrémente le dernier bloc de chiffres d'une chaîne. Ex : TS-04212 → TS-04213.
+  function bumpSerial(s) {
+    if (!s) return null;
+    const m = String(s).match(/^(.*?)(\d+)(\D*)$/);
+    if (!m) return null;
+    const head = m[1], num = m[2], tail = m[3];
+    const bumped = String(parseInt(num, 10) + 1).padStart(num.length, '0');
+    return head + bumped + tail;
+  }
+  function cloneFromPrev(prev, newNum) {
+    haptic(15);
+    d.marque = prev.marque || '';
+    d.type   = prev.type   || '';
+    d.taille = prev.taille || '';
+    d.charge = prev.charge || '';
+    if (newNum) {
+      d.num = newNum;
+      document.getElementById('f-num').value = newNum;
+    }
+    // On saute directement à la localisation. La marque/type/taille/charge sont
+    // déjà remplies et seront re-présentées pour confirmation si le tech veut
+    // corriger via le bouton Retour.
+    if (newNum) { step = 4; showStep(step); }
+    else        { document.getElementById('f-num').focus(); }
+    showToast(newNum ? `Copie + ${newNum} — vérifie la localisation.` : 'Détails copiés — entre le N° de toile.', 2800);
   }
   function showCustomInput(field) {
     document.getElementById(field+'-custom').classList.add('show');
@@ -1486,14 +1584,18 @@
     step = pv; showStep(step);
   }
   function pickStatus(val) {
+    haptic(val === 'Conforme' ? 8 : 20);
     d.statut = val;
     document.querySelectorAll('.status-btn').forEach(b=>b.classList.add('dim'));
-    document.querySelector('.status-btn.'+(val==='Conforme'?'ok':'nok')).classList.remove('dim');
+    const sel = document.querySelector('.status-btn.'+(val==='Conforme'?'ok':'nok'));
+    sel.classList.remove('dim');
+    sel.classList.remove('pulse'); void sel.offsetWidth; sel.classList.add('pulse');
     setTimeout(next, 420);
   }
 
   // ─── CHECKLIST ──────────────────────────────────────────
   function toggleCheck(el) {
+    haptic(6);
     el.classList.toggle('on');
     const val = el.dataset.val;
     if (el.classList.contains('on')) { if (!d.issues.includes(val)) d.issues.push(val); }
@@ -1986,6 +2088,7 @@
 
   // ─── QUICK PICK LOCALISATION ────────────────────────────
   function pickLoc(val) {
+    haptic(8);
     document.getElementById('f-loc').value = val;
     d.loc = val;
     step = 5; showStep(step);
@@ -2000,6 +2103,36 @@
       e.preventDefault(); next();
     }
   });
+
+  // ─── SWIPE HORIZONTAL (retour arrière) ──────────────────
+  // Un swipe vers la droite depuis le bord gauche (> 80px, < 40° de l'horizontale)
+  // déclenche back(). Évite les conflits avec le scroll vertical et la saisie texte.
+  (function attachSwipeBack() {
+    let startX = 0, startY = 0, tracking = false;
+    const wrap = document.getElementById('stepsWrap');
+    if (!wrap) return;
+    wrap.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) { tracking = false; return; }
+      const t = e.touches[0];
+      startX = t.clientX; startY = t.clientY;
+      // On ne track que si le geste commence dans la zone de gauche ou depuis un non-input
+      tracking = true;
+    }, { passive: true });
+    wrap.addEventListener('touchend', (e) => {
+      if (!tracking) return;
+      tracking = false;
+      const t = (e.changedTouches && e.changedTouches[0]);
+      if (!t) return;
+      const dx = t.clientX - startX;
+      const dy = Math.abs(t.clientY - startY);
+      // Swipe droite ≥ 90px, vertical < 50px, et on n'est pas en train d'éditer un champ
+      const isEditing = document.activeElement && ['INPUT','TEXTAREA'].includes(document.activeElement.tagName);
+      if (dx >= 90 && dy < 50 && !isEditing && step > sessionStartStep) {
+        haptic(12);
+        back();
+      }
+    }, { passive: true });
+  })();
 
   // ─── FETCH "AUJOURD'HUI" (cross-device) ─────────────────
   // Charge tous les records créés aujourd'hui via le Worker. Permet à n'importe
@@ -2093,6 +2226,7 @@
   }
   function filterEtabSuggestions() { renderEtabSuggestions(); }
   function pickEtab(val) {
+    haptic(8);
     document.getElementById('f-etab').value = val;
     clearError();
     next();
