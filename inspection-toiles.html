@@ -187,14 +187,17 @@
     /* ─── PROGRESS ─── */
     .progress-wrap { padding: 14px 24px 10px; border-bottom: 1px solid var(--border); }
     .progress-bar { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
-    .progress-fill { height: 100%; background: var(--navy); border-radius: 3px; transition: width .35s ease; }
+    .progress-fill { height: 100%; background: var(--navy); border-radius: 3px; transition: width .45s cubic-bezier(.34,1.56,.64,1); }
     .progress-label { font-size: 11px; color: var(--text-muted); text-align: right; margin-top: 6px; }
 
     /* ─── STEPS ─── */
-    .steps { flex: 1; padding: 28px 24px 16px; }
+    .steps { flex: 1; padding: 28px 24px 16px; overflow: hidden; }
     .step { display: none; }
-    .step.active { display: block; animation: slideIn .25s ease; }
-    @keyframes slideIn { from { opacity:0; transform:translateX(14px); } to { opacity:1; transform:translateX(0); } }
+    .step.active { display: block; }
+    .step.slide-fwd  { animation: slideFwd  .28s cubic-bezier(.25,.46,.45,.94); }
+    .step.slide-back { animation: slideBack .28s cubic-bezier(.25,.46,.45,.94); }
+    @keyframes slideFwd  { from { opacity:0; transform:translateX( 40px); } to { opacity:1; transform:translateX(0); } }
+    @keyframes slideBack { from { opacity:0; transform:translateX(-40px); } to { opacity:1; transform:translateX(0); } }
     .step-q    { font-size: 22px; font-weight: 800; line-height: 1.25; margin-bottom: 6px; }
     .step-hint { font-size: 14px; color: var(--text-muted); margin-bottom: 28px; }
 
@@ -232,8 +235,24 @@
       text-align: left;
     }
     .choice-btn:active { background: #eef2f7; }
-    .choice-btn.selected { border-color: var(--navy); background: var(--cyan-light); color: var(--navy); }
+    .choice-btn.selected { border-color: var(--navy); background: var(--cyan-light); color: var(--navy); position: relative; }
     .choice-btn.add-btn  { border-style: dashed; color: var(--text-muted); font-weight: 500; background: var(--white); }
+    /* Checkmark animé sur sélection */
+    .choice-btn .pick-check {
+      position: absolute; top: 10px; right: 12px;
+      width: 22px; height: 22px;
+      opacity: 0; transform: scale(0);
+      transition: all .25s cubic-bezier(.34,1.56,.64,1);
+    }
+    .choice-btn.selected .pick-check { opacity: 1; transform: scale(1); }
+    .choice-btn .pick-check svg { width: 22px; height: 22px; }
+    .choice-btn .pick-check circle { fill: var(--navy); }
+    .choice-btn .pick-check polyline {
+      fill: none; stroke: #fff; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;
+      stroke-dasharray: 20; stroke-dashoffset: 20;
+      transition: stroke-dashoffset .3s ease .1s;
+    }
+    .choice-btn.selected .pick-check polyline { stroke-dashoffset: 0; }
     @keyframes pickPulse {
       0%   { transform: scale(1);    box-shadow: 0 0 0 0   rgba(14, 51, 120, 0.35); }
       40%  { transform: scale(1.04); box-shadow: 0 0 0 10px rgba(14, 51, 120, 0);    }
@@ -347,6 +366,19 @@
     .status-btn.ok  { border-color: var(--success); background: var(--success-light); color: var(--success); }
     .status-btn.nok { border-color: var(--danger);  background: var(--danger-light);  color: var(--danger); }
     .status-btn.dim { opacity: .35; }
+    /* Glow pulsé sur Conforme au tap */
+    @keyframes glowOk {
+      0%   { box-shadow: 0 0 0 0   rgba(5,150,105,.45); }
+      50%  { box-shadow: 0 0 0 12px rgba(5,150,105,0);   }
+      100% { box-shadow: 0 0 0 0   rgba(5,150,105,0);   }
+    }
+    @keyframes glowNok {
+      0%   { box-shadow: 0 0 0 0   rgba(220,38,38,.40); }
+      50%  { box-shadow: 0 0 0 12px rgba(220,38,38,0);   }
+      100% { box-shadow: 0 0 0 0   rgba(220,38,38,0);   }
+    }
+    .status-btn.glow-ok  { animation: glowOk  .55s ease-out; }
+    .status-btn.glow-nok { animation: glowNok  .55s ease-out; }
 
     /* ─── CHECKLIST ─── */
     .checklist { display: flex; flex-direction: column; gap: 10px; }
@@ -357,16 +389,75 @@
       border: 2px solid var(--border);
       border-radius: var(--radius);
       cursor: pointer; font-size: 15px; font-weight: 500;
-      transition: all .15s; user-select: none;
+      transition: all .2s; user-select: none;
     }
     .check-item.on { border-color: var(--danger); background: var(--danger-light); color: var(--danger); }
+    .check-item.just-checked { animation: checkPop .3s cubic-bezier(.34,1.56,.64,1); }
+    @keyframes checkPop { 0% { transform: scale(1); } 40% { transform: scale(1.03); } 100% { transform: scale(1); } }
     .check-box {
       width: 26px; height: 26px; flex-shrink: 0;
       border: 2px solid var(--border); border-radius: 7px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 14px; color: transparent; transition: all .15s;
+      font-size: 14px; color: transparent; transition: all .2s cubic-bezier(.34,1.56,.64,1);
     }
-    .check-item.on .check-box { background: var(--danger); border-color: var(--danger); color: #fff; }
+    .check-item.on .check-box { background: var(--danger); border-color: var(--danger); color: #fff; transform: scale(1.1); }
+
+    /* ─── OCR SHIMMER (attente résultat) ─── */
+    .ocr-shimmer {
+      height: 18px; border-radius: 6px; margin-bottom: 8px;
+      background: linear-gradient(90deg, var(--border) 25%, #d1d9e6 50%, var(--border) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s ease-in-out infinite;
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    .ocr-shimmer-wrap { display: none; margin: 12px 0; }
+    .ocr-shimmer-wrap.show { display: block; }
+
+    /* ─── COUNTER FLIP ─── */
+    @keyframes counterFlip {
+      0%   { transform: translateY(0);    opacity: 1; }
+      40%  { transform: translateY(-100%); opacity: 0; }
+      41%  { transform: translateY(100%);  opacity: 0; }
+      100% { transform: translateY(0);    opacity: 1; }
+    }
+    .counter-flip { animation: counterFlip .35s ease-out; display: inline-block; }
+
+    /* ─── PHOTO THUMB BOUNCE ─── */
+    @keyframes thumbBounce {
+      0%   { transform: scale(0); opacity: 0; }
+      60%  { transform: scale(1.15); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .photo-thumb-wrap.new { animation: thumbBounce .35s cubic-bezier(.34,1.56,.64,1); }
+
+    /* ─── SUCCESS SCREEN ─── */
+    .success-check-wrap { margin: 0 auto 16px; width: 72px; height: 72px; }
+    .success-check-circle {
+      fill: none; stroke: var(--success); stroke-width: 3;
+      stroke-dasharray: 200; stroke-dashoffset: 200;
+      animation: drawCircle .5s ease-out forwards;
+    }
+    .success-check-tick {
+      fill: none; stroke: var(--success); stroke-width: 3.5;
+      stroke-linecap: round; stroke-linejoin: round;
+      stroke-dasharray: 36; stroke-dashoffset: 36;
+      animation: drawTick .35s ease-out .35s forwards;
+    }
+    @keyframes drawCircle { to { stroke-dashoffset: 0; } }
+    @keyframes drawTick   { to { stroke-dashoffset: 0; } }
+    .confetti-container {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none; z-index: 999; overflow: hidden;
+    }
+    .confetti-piece {
+      position: absolute; width: 8px; height: 8px; border-radius: 2px;
+      animation: confettiFall 1.6s ease-out forwards;
+      opacity: 0;
+    }
+    @keyframes confettiFall {
+      0%   { transform: translateY(-20px) rotate(0deg);   opacity: 1; }
+      100% { transform: translateY(105vh) rotate(720deg);  opacity: 0; }
+    }
 
     /* ─── PHOTO BAR ─── */
     .photo-bar {
@@ -424,23 +515,7 @@
       padding: 48px 28px; text-align: center;
     }
     #successScreen.show { display: flex; }
-    .success-icon-wrap {
-      width: 96px; height: 96px;
-      background: var(--cyan-light);
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      margin-bottom: 28px;
-      position: relative;
-    }
-    .success-icon-check {
-      position: absolute; top: -4px; right: -4px;
-      width: 30px; height: 30px;
-      background: var(--cyan);
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      color: white; font-size: 15px; font-weight: 900;
-      border: 3px solid white;
-    }
+    /* (success-icon-wrap remplacé par success-check-wrap animé — voir plus haut) */
     .success-title { font-size: 30px; font-weight: 800; color: var(--text); margin-bottom: 10px; }
     .success-sub   { font-size: 15px; color: var(--text-muted); margin-bottom: 8px; max-width: 280px; line-height: 1.55; }
     .success-who   { font-size: 14px; color: var(--text-muted); margin-bottom: 36px; }
@@ -690,6 +765,11 @@
       </button>
       <input type="file" id="scanInput" accept="image/*" capture="environment" style="display:none" onchange="onScanFile(event)">
       <div class="scan-status" id="scanStatus"></div>
+      <div class="ocr-shimmer-wrap" id="ocrShimmerWrap">
+        <div class="ocr-shimmer" style="width:60%"></div>
+        <div class="ocr-shimmer" style="width:80%"></div>
+        <div class="ocr-shimmer" style="width:45%"></div>
+      </div>
       <div class="scan-divider">ou saisir à la main</div>
 
       <input class="field" id="f-num" type="text" placeholder="Ex : T-2024-001" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" inputmode="text">
@@ -794,16 +874,13 @@
 
   <!-- ═══ SUCCESS ═══ -->
   <div id="successScreen">
-    <div class="success-icon-wrap">
-      <!-- Icône bulle de message (style mockup) -->
-      <svg width="50" height="46" viewBox="0 0 50 46" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="38" height="30" rx="9" stroke="#1b3472" stroke-width="2.5" fill="none"/>
-        <line x1="10" y1="12" x2="32" y2="12" stroke="#1b3472" stroke-width="2.5" stroke-linecap="round"/>
-        <line x1="10" y1="20" x2="26" y2="20" stroke="#1b3472" stroke-width="2.5" stroke-linecap="round"/>
-        <path d="M8 32 L11 44 L20 32" fill="none" stroke="#1b3472" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    <div class="success-check-wrap" id="successCheckWrap">
+      <svg viewBox="0 0 72 72" width="72" height="72">
+        <circle class="success-check-circle" cx="36" cy="36" r="33"/>
+        <polyline class="success-check-tick" points="22,38 32,48 50,26"/>
       </svg>
-      <div class="success-icon-check">✓</div>
     </div>
+    <div id="confettiZone"></div>
     <div class="success-title" id="successTitle">Enregistré !!</div>
     <div class="success-sub"   id="successSub">Entrée bien enregistrée. Si tu dois la corriger, appuie sur le compteur de toiles en haut à droite pour retrouver et modifier cette inspection.</div>
     <div class="success-who">Technicien : <strong id="s-tech"></strong> · <strong id="s-etab"></strong></div>
@@ -1090,6 +1167,28 @@
     toastTimer = setTimeout(() => t.classList.remove('show'), ms);
   }
 
+  // ─── CONFETTI (succès post-submit) ─────────────────────
+  function spawnConfetti() {
+    const zone = document.getElementById('confettiZone');
+    const container = document.createElement('div');
+    container.className = 'confetti-container';
+    const colors = ['#059669','#4ab8e8','#1b3472','#d97706','#dc2626','#7c3aed'];
+    for (let i = 0; i < 28; i++) {
+      const p = document.createElement('div');
+      p.className = 'confetti-piece';
+      p.style.left = Math.random()*100 + '%';
+      p.style.background = colors[Math.floor(Math.random()*colors.length)];
+      p.style.animationDelay = (Math.random()*.6) + 's';
+      p.style.animationDuration = (1.2 + Math.random()*0.8) + 's';
+      p.style.width  = (5 + Math.random()*6) + 'px';
+      p.style.height = (5 + Math.random()*6) + 'px';
+      p.style.borderRadius = Math.random() > .5 ? '50%' : '2px';
+      container.appendChild(p);
+    }
+    zone.appendChild(container);
+    setTimeout(() => container.remove(), 2500);
+  }
+
   // ─── INLINE ERROR ──────────────────────────────────────
   function showError(msg) {
     const el = document.getElementById('inlineError');
@@ -1295,11 +1394,21 @@
   function updateCounter() {
     const n = submitted.length;
     const wasZero = !document.getElementById('counterBadge').classList.contains('visible');
+    const prevCount = document.getElementById('counterText').textContent;
     document.getElementById('counterBadge').classList.toggle('visible', n > 0);
     document.getElementById('btnFinRapport').classList.toggle('visible', n > 0);
     const btnTs = document.getElementById('btnTerminerScreen');
     if (btnTs) btnTs.style.display = n > 0 ? 'block' : 'none';
-    if (n > 0) document.getElementById('counterText').textContent = n + (n===1?' toile':' toiles');
+    if (n > 0) {
+      const txt = n + (n===1?' toile':' toiles');
+      const el  = document.getElementById('counterText');
+      el.textContent = txt;
+      // Flip animation quand le chiffre change
+      if (prevCount !== txt && !wasZero) {
+        el.classList.remove('counter-flip'); void el.offsetWidth;
+        el.classList.add('counter-flip');
+      }
+    }
     // Toast de découvrabilité — première fois que le compteur apparaît
     if (n === 1 && wasZero && !localStorage.getItem('rtm_counterToastSeen')) {
       setTimeout(() => {
@@ -1325,10 +1434,12 @@
     badge.textContent = n;
     badge.classList.toggle('visible', n > 0);
     thumbs.style.display = n > 0 ? 'flex' : 'none';
+    const prevCount = thumbs.children.length;
     thumbs.innerHTML = '';
     photos.forEach((p, i) => {
       const wrap = document.createElement('div');
-      wrap.className = 'photo-thumb-wrap';
+      // Bounce uniquement pour la dernière photo ajoutée (nouvellement arrivée)
+      wrap.className = 'photo-thumb-wrap' + (i === n-1 && n > prevCount ? ' new' : '');
       wrap.innerHTML = `<img class="photo-thumb" src="${p.dataUrl}" alt="">
         <button class="photo-thumb-del" onclick="removePhoto(${i})">✕</button>`;
       thumbs.appendChild(wrap);
@@ -1516,9 +1627,15 @@
   }
 
   // ─── SHOW STEP ──────────────────────────────────────────
+  let prevStep = 1;  // pour la direction d'animation
   function showStep(n) {
-    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
-    document.getElementById('step-'+n).classList.add('active');
+    const dir = n >= prevStep ? 'slide-fwd' : 'slide-back';
+    document.querySelectorAll('.step').forEach(s => {
+      s.classList.remove('active', 'slide-fwd', 'slide-back');
+    });
+    const el = document.getElementById('step-'+n);
+    el.classList.add('active', dir);
+    prevStep = n;
     document.getElementById('btnBack').style.display = n > sessionStartStep ? 'block' : 'none';
     const btnNext = document.getElementById('btnNext');
     btnNext.disabled = false;
@@ -1564,10 +1681,12 @@
     const defaultsLC = defaults.map(x => x.toLowerCase());
     const all = [...defaults, ...custom.filter(c => !defaultsLC.includes(c.toLowerCase()))];
     grid.innerHTML = '';
+    const checkSvg = '<span class="pick-check"><svg viewBox="0 0 22 22"><circle cx="11" cy="11" r="11"/><polyline points="6,11 10,15 16,7"/></svg></span>';
     all.forEach(val => {
       const btn = document.createElement('div');
       btn.className = 'choice-btn' + (d[field]===val?' selected':'');
-      btn.dataset.val = val; btn.textContent = val;
+      btn.dataset.val = val;
+      btn.innerHTML = val + checkSvg;
       btn.onclick = () => pickChoice(field, val, btn);
       // Appui long pour supprimer (uniquement les entrées custom, pas les défauts)
       const isRemovable = !defaultsLC.includes(val.toLowerCase());
@@ -1744,18 +1863,17 @@
     setScanStatus('📸 Traitement de la photo…', false);
     try {
       const dataUrl = await resizeImageForOcr(file, 1600, 0.85);
-      // Archive la photo avant même l'appel OCR : même si Claude Haiku se
-      // trompe ou renvoie du vide, on veut pouvoir archiver l'image pour
-      // que le tech puisse compléter à la main tout en gardant une trace
-      // visuelle de l'étiquette.
       const ts = new Date().toISOString().replace(/[:.]/g,'-');
       ocrPhoto = { dataUrl, filename: `etiquette-OCR-${ts}.jpg` };
       setScanStatus('🧠 Lecture de l\'étiquette en cours…', false);
+      // Shimmer pendant l'appel réseau
+      document.getElementById('ocrShimmerWrap').classList.add('show');
       const res = await fetch(API_BASE + '/ocr', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image: dataUrl }),
       });
+      document.getElementById('ocrShimmerWrap').classList.remove('show');
       const json = await res.json();
       if (!res.ok) {
         setScanStatus('Échec OCR : ' + (json.error || res.status) + ' — saisis à la main.', true);
@@ -1764,6 +1882,7 @@
       applyOcrResult(json);
     } catch (e) {
       console.error('[OCR]', e);
+      document.getElementById('ocrShimmerWrap').classList.remove('show');
       setScanStatus('Erreur réseau — saisis à la main. (' + e.message + ')', true);
     } finally {
       btn.removeAttribute('disabled');
@@ -2013,17 +2132,27 @@
   function pickStatus(val) {
     haptic(val === 'Conforme' ? 8 : 20);
     d.statut = val;
-    document.querySelectorAll('.status-btn').forEach(b=>b.classList.add('dim'));
+    document.querySelectorAll('.status-btn').forEach(b => {
+      b.classList.add('dim');
+      b.classList.remove('glow-ok', 'glow-nok', 'pulse');
+    });
     const sel = document.querySelector('.status-btn.'+(val==='Conforme'?'ok':'nok'));
     sel.classList.remove('dim');
-    sel.classList.remove('pulse'); void sel.offsetWidth; sel.classList.add('pulse');
+    void sel.offsetWidth;
+    sel.classList.add('pulse', val === 'Conforme' ? 'glow-ok' : 'glow-nok');
     setTimeout(next, 420);
   }
 
   // ─── CHECKLIST ──────────────────────────────────────────
   function toggleCheck(el) {
     haptic(6);
+    const wasOn = el.classList.contains('on');
     el.classList.toggle('on');
+    // Animation pop au cochage
+    if (!wasOn) {
+      el.classList.remove('just-checked'); void el.offsetWidth;
+      el.classList.add('just-checked');
+    }
     const val = el.dataset.val;
     if (el.classList.contains('on')) { if (!d.issues.includes(val)) d.issues.push(val); }
     else d.issues = d.issues.filter(v=>v!==val);
@@ -2102,6 +2231,11 @@
       document.getElementById('progressWrap').style.display = 'none';
       document.getElementById('photoBar').classList.remove('visible');
       document.getElementById('successScreen').classList.add('show');
+      // Relance l'animation du check SVG en forçant un re-render
+      const svgWrap = document.getElementById('successCheckWrap');
+      svgWrap.innerHTML = svgWrap.innerHTML;
+      // Confetti léger si pas en file d'attente
+      if (!queued) setTimeout(spawnConfetti, 350);
     };
 
     // Si offline ET création (pas édition), on envoie en file d'attente
