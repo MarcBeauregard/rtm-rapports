@@ -944,6 +944,9 @@
           </div>
           <input class="field-card-input" id="f-num" type="text" placeholder="Ex : T-2024-001" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" inputmode="text" oninput="handleNumInput(this.value)">
           <div class="history-card" id="numHistoryCard"></div>
+          <div class="quick-picks">
+            <button class="quick-pick" onclick="pickNum('Illisible ou aucun numéro')">Illisible ou aucun numéro</button>
+          </div>
           <div class="quick-picks-label" id="cloneLabel" style="display:none">Gagner du temps</div>
           <div class="quick-picks" id="cloneWrap"></div>
         </div>
@@ -2133,8 +2136,7 @@
   // ─── HAPTIC + CLONE ─────────────────────────────────────
   function haptic(ms = 10) { if (navigator.vibrate) navigator.vibrate(ms); }
 
-  // Suggère de cloner les données (marque/type/taille/charge) de la toile précédente
-  // ou d'incrémenter le N° de série pour le même équipement voisin.
+  // Suggère d'incrémenter le N° de série pour le même équipement voisin.
   function renderCloneSuggestions() {
     const wrap  = document.getElementById('cloneWrap');
     const label = document.getElementById('cloneLabel');
@@ -2143,17 +2145,7 @@
       wrap.style.display = 'none'; label.style.display = 'none'; return;
     }
     const prev = submitted[submitted.length - 1];
-    const sub = [prev.marque, prev.type, prev.taille, prev.charge].filter(Boolean).join(' · ');
-    // 1) Bouton « Comme la précédente » (copie tout sauf le N°)
-    const b1 = document.createElement('button');
-    b1.className = 'quick-pick recent';
-    b1.type = 'button';
-    b1.innerHTML = `<span style="font-weight:600">↻ Comme la précédente</span><br><span style="font-size:12px; opacity:0.75">${sub || 'pas de détails'}</span>`;
-    b1.style.textAlign = 'left';
-    b1.style.lineHeight = '1.3';
-    b1.onclick = () => cloneFromPrev(prev, false);
-    wrap.appendChild(b1);
-    // 2) Bouton « +1 » (incrémente le N° numérique si détecté)
+    // Bouton « +1 » (incrémente le N° numérique si détecté)
     const next = bumpSerial(prev.num);
     if (next) {
       const b2 = document.createElement('button');
@@ -2164,8 +2156,10 @@
       b2.style.lineHeight = '1.3';
       b2.onclick = () => cloneFromPrev(prev, next);
       wrap.appendChild(b2);
+      wrap.style.display = 'flex'; label.style.display = 'block';
+    } else {
+      wrap.style.display = 'none'; label.style.display = 'none';
     }
-    wrap.style.display = 'flex'; label.style.display = 'block';
   }
   // Incrémente le dernier bloc de chiffres d'une chaîne. Ex : TS-04212 → TS-04213.
   function bumpSerial(s) {
@@ -3058,6 +3052,13 @@
     document.getElementById('f-loc').value = val;
     d.loc = val;
     // On reste sur step 3 : la carte loc passe en vert ✓. Pas d'avance auto.
+    refreshFieldCards();
+  }
+  function pickNum(val) {
+    haptic(8);
+    document.getElementById('f-num').value = val;
+    d.num = val;
+    hideHistoryCard();
     refreshFieldCards();
   }
 
