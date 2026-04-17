@@ -278,6 +278,49 @@
     .scan-status.show { display: block; }
     .scan-status.error { background: var(--danger-light); color: var(--danger); }
 
+    /* ─── OCR RECAP (affiché au step 9 quand OCR a rempli des champs) ─── */
+    .ocr-recap { display: none; margin-bottom: 18px; }
+    .ocr-recap.show { display: block; }
+    .ocr-recap-card {
+      background: var(--cyan-light);
+      border: 1.5px solid var(--cyan);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+    .ocr-recap-title {
+      font-size: 12px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .6px; color: var(--navy); margin-bottom: 10px;
+      opacity: .7;
+    }
+    .ocr-recap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; }
+    .ocr-recap-item { font-size: 14px; line-height: 1.35; }
+    .ocr-recap-label { font-weight: 700; color: var(--navy); font-size: 11px; text-transform: uppercase; letter-spacing: .4px; }
+    .ocr-recap-val { color: var(--text); }
+    .ocr-recap-edit {
+      display: inline-block; margin-top: 10px; font-size: 13px;
+      color: var(--navy); text-decoration: underline; cursor: pointer;
+      background: none; border: none; padding: 0; font-family: inherit;
+    }
+    /* Bouton « Tout est bon → Conforme » */
+    .btn-fast-conforme {
+      width: 100%;
+      padding: 18px 20px;
+      margin-top: 16px;
+      background: linear-gradient(135deg, var(--success) 0%, #047857 100%);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 17px; font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      display: none; align-items: center; justify-content: center; gap: 10px;
+      box-shadow: 0 4px 14px rgba(5, 150, 105, 0.25);
+      transition: transform .15s, box-shadow .15s;
+      user-select: none;
+    }
+    .btn-fast-conforme.show { display: flex; }
+    .btn-fast-conforme:active { transform: scale(.97); box-shadow: 0 2px 8px rgba(5, 150, 105, 0.2); }
+
     .custom-input-wrap { display: none; margin-top: 10px; }
     .custom-input-wrap.show { display: flex; gap: 8px; align-items: flex-end; }
     .custom-input-wrap .field { font-size: 16px; margin: 0; }
@@ -623,6 +666,8 @@
       <div class="step-q">Qui êtes-vous ?</div>
       <div class="step-hint">Votre nom — ne sera demandé qu'une fois par session</div>
       <input class="field" id="f-tech" type="text" placeholder="Ex : Jean Tremblay" autocomplete="name" inputmode="text">
+      <div class="quick-picks-label" id="techHistoryLabel" style="display:none">Techniciens récents</div>
+      <div class="quick-picks" id="techHistoryPicks"></div>
     </div>
 
     <div class="step" id="step-2">
@@ -631,6 +676,8 @@
       <input class="field" id="f-etab" type="text" placeholder="Ex : CHSLD Sainte-Marie" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" inputmode="text" oninput="filterEtabSuggestions()">
       <div class="quick-picks-label" id="etabRecentLabel" style="display:none">Actifs aujourd'hui</div>
       <div class="quick-picks" id="etabRecentPicks"></div>
+      <div class="quick-picks-label" id="etabHistoryLabel" style="display:none">Établissements récents</div>
+      <div class="quick-picks" id="etabHistoryPicks"></div>
     </div>
 
     <div class="step" id="step-3">
@@ -702,8 +749,19 @@
     </div>
 
     <div class="step" id="step-9">
+      <!-- Récap OCR visible si on a sauté des étapes grâce au scan -->
+      <div class="ocr-recap" id="ocrRecap">
+        <div class="ocr-recap-card">
+          <div class="ocr-recap-title">Valeurs lues par le scan</div>
+          <div class="ocr-recap-grid" id="ocrRecapGrid"></div>
+          <button class="ocr-recap-edit" onclick="goBackToDetails()">Modifier un champ</button>
+        </div>
+      </div>
       <div class="step-q">Statut de la toile</div>
       <div class="step-hint">La toile passe-t-elle l'inspection ?</div>
+      <button type="button" class="btn-fast-conforme" id="btnFastConforme" onclick="fastConforme()">
+        ✓ Tout est bon — Conforme
+      </button>
       <div class="status-grid">
         <div class="status-btn ok"  onclick="pickStatus('Conforme')">Conforme</div>
         <div class="status-btn nok" onclick="pickStatus('Non conforme')">Non conforme</div>
@@ -966,6 +1024,61 @@
     } catch { return null; }
   }
   function clearSession() { localStorage.removeItem(SESSION_KEY); }
+
+  // ─── MÉMOIRE LONGUE DURÉE (technicien + établissement) ─
+  // Stocke les N derniers noms utilisés pour les proposer en quick-pick
+  // même hors-ligne ou lors d'une nouvelle session. Distinct de la session
+  // du jour : ceci survit indéfiniment.
+  function getTechHistory()  { try { return JSON.parse(localStorage.getItem('rtm_tech_history')||'[]'); } catch { return []; } }
+  function getEtabHistory()  { try { return JSON.parse(localStorage.getItem('rtm_etab_history')||'[]'); } catch { return []; } }
+  function addTechHistory(name) {
+    if (!name) return;
+    const list = getTechHistory().filter(x => x.toLowerCase() !== name.toLowerCase());
+    list.unshift(name);
+    localStorage.setItem('rtm_tech_history', JSON.stringify(list.slice(0, 8)));
+  }
+  function addEtabHistory(name) {
+    if (!name) return;
+    const list = getEtabHistory().filter(x => x.toLowerCase() !== name.toLowerCase());
+    list.unshift(name);
+    localStorage.setItem('rtm_etab_history', JSON.stringify(list.slice(0, 12)));
+  }
+  function renderTechHistory() {
+    const wrap  = document.getElementById('techHistoryPicks');
+    const label = document.getElementById('techHistoryLabel');
+    const list  = getTechHistory();
+    wrap.innerHTML = '';
+    list.slice(0, 4).forEach(name => {
+      const b = document.createElement('button');
+      b.className = 'quick-pick recent'; b.type = 'button';
+      b.textContent = name;
+      b.onclick = () => { haptic(8); document.getElementById('f-tech').value = name; clearError(); next(); };
+      wrap.appendChild(b);
+    });
+    const show = list.length > 0;
+    label.style.display = show ? 'block' : 'none';
+    wrap.style.display  = show ? 'flex'  : 'none';
+  }
+  function renderEtabHistory() {
+    const wrap  = document.getElementById('etabHistoryPicks');
+    const label = document.getElementById('etabHistoryLabel');
+    // Ne pas afficher si les suggestions "actifs aujourd'hui" suffisent
+    const todayList = getTodayEtabs('');
+    const histList  = getEtabHistory().filter(name =>
+      !todayList.some(t => t.toLowerCase() === name.toLowerCase())
+    );
+    wrap.innerHTML = '';
+    histList.slice(0, 6).forEach(name => {
+      const b = document.createElement('button');
+      b.className = 'quick-pick'; b.type = 'button';
+      b.textContent = name;
+      b.onclick = () => pickEtab(name);
+      wrap.appendChild(b);
+    });
+    const show = histList.length > 0;
+    label.style.display = show ? 'block' : 'none';
+    wrap.style.display  = show ? 'flex'  : 'none';
+  }
 
   // ─── TOAST ─────────────────────────────────────────────
   let toastTimer = null;
@@ -1391,8 +1504,13 @@
   // ─── PROGRESS ───────────────────────────────────────────
   function updateProgress() {
     const sessionSteps = sessionStartStep === 1 ? LAST_STEP : LAST_STEP - 2;
-    const total = d.statut === 'Non conforme' ? sessionSteps : sessionSteps - 1;
-    const cur   = step - (sessionStartStep - 1);
+    // Si OCR a rempli les étapes 5-8, on a 4 étapes en moins
+    const ocrSkip = ocrFieldsFilled() ? 4 : 0;
+    const base  = d.statut === 'Non conforme' ? sessionSteps : sessionSteps - 1;
+    const total = base - ocrSkip;
+    // Calculer le numéro d'étape affiché en tenant compte du skip
+    let cur = step - (sessionStartStep - 1);
+    if (ocrSkip && step >= 9) cur -= ocrSkip;
     document.getElementById('progressFill').style.width = Math.min((cur/total)*100, 100) + '%';
     document.getElementById('progressLabel').textContent = `Étape ${cur} sur ${total}`;
   }
@@ -1411,13 +1529,15 @@
       btnNext.textContent = 'Continuer →';
       btnNext.className   = 'btn btn-next';
     }
-    if (n === 2) renderEtabSuggestions();
+    if (n === 1) renderTechHistory();
+    if (n === 2) { renderEtabSuggestions(); renderEtabHistory(); }
     if (n === 3) renderCloneSuggestions();
     if (n === 4) renderLocSuggestions();
     if (n === 5) buildChoiceGrid('marque');
     if (n === 6) buildChoiceGrid('type');
     if (n === 7) buildChoiceGrid('taille');
     if (n === 8) buildChoiceGrid('charge');
+    if (n === 9) renderOcrRecap();
     clearError();
     updateProgress(); updateHeader(); updatePhotoBar();
     const inp = document.getElementById('step-'+n).querySelector('input:not([id$="-custom-input"]):not([type="file"]), textarea');
@@ -1580,6 +1700,9 @@
   }
   function cloneFromPrev(prev, newNum) {
     haptic(15);
+    // Reset photo OCR : clone ≠ scan, on ne veut pas archiver une photo
+    // d'étiquette qui correspond à la toile précédente.
+    ocrPhoto = null;
     d.marque = prev.marque || '';
     d.type   = prev.type   || '';
     d.taille = prev.taille || '';
@@ -1737,7 +1860,11 @@
     const warn = (typeof chargeTypeWarning === 'function') ? chargeTypeWarning(d.type, d.charge) : null;
 
     haptic(20);
-    setScanStatus('✓ ' + filled.length + ' champ(s) rempli(s) : ' + filled.join(', ') + '. Vérifie à chaque étape.', false);
+    const willSkip = ocrFieldsFilled();
+    const statusMsg = willSkip
+      ? '✓ ' + filled.length + ' champs remplis — tu passeras directement au statut après la localisation.'
+      : '✓ ' + filled.length + ' champ(s) rempli(s) : ' + filled.join(', ') + '. Vérifie à chaque étape.';
+    setScanStatus(statusMsg, false);
     showToast('Étiquette scannée : ' + filled.join(' · '), 3200);
     if (warn) {
       setTimeout(() => showToast('⚠ ' + warn, 4200), 1100);
@@ -1748,6 +1875,53 @@
     if (d.num) {
       setTimeout(() => document.getElementById('f-num').focus(), 50);
     }
+  }
+
+  // ─── OCR SKIP + RÉCAP + FAST CONFORME ─────────────────
+  // Retourne true si l'OCR a rempli les 4 champs-clés (marque, type, taille, charge).
+  // Quand c'est le cas, on peut sauter les étapes 5-8 et afficher un récap au step 9.
+  function ocrFieldsFilled() {
+    return ocrPhoto && d.marque && d.type && d.taille && d.charge;
+  }
+  // Construit le récap visuel des valeurs lues par l'OCR (affiché en haut du step 9).
+  function renderOcrRecap() {
+    const wrap = document.getElementById('ocrRecap');
+    const grid = document.getElementById('ocrRecapGrid');
+    const btn  = document.getElementById('btnFastConforme');
+    if (!ocrFieldsFilled()) {
+      wrap.classList.remove('show');
+      btn.classList.remove('show');
+      return;
+    }
+    const items = [
+      { label: 'N° toile',  val: d.num },
+      { label: 'Localisation', val: d.loc || '—' },
+      { label: 'Marque',    val: d.marque },
+      { label: 'Type',      val: d.type },
+      { label: 'Taille',    val: d.taille },
+      { label: 'Charge max',val: d.charge },
+    ];
+    grid.innerHTML = items.map(i =>
+      `<div class="ocr-recap-item"><div class="ocr-recap-label">${i.label}</div><div class="ocr-recap-val">${i.val || '—'}</div></div>`
+    ).join('');
+    wrap.classList.add('show');
+    btn.classList.add('show');
+  }
+  // Retour aux étapes détaillées (5-8) quand le tech veut corriger un champ OCR.
+  // On désactive le skip en vidant ocrPhoto temporairement, pour que next() ne saute plus.
+  function goBackToDetails() {
+    // Aller au step 5 (marque) pour passer chaque champ en revue.
+    step = 5; showStep(step);
+  }
+  // Raccourci : Conforme direct en 1 tap depuis le récap OCR.
+  function fastConforme() {
+    haptic(8);
+    d.statut = 'Conforme';
+    // Anime les boutons pour feedback visuel
+    document.querySelectorAll('.status-btn').forEach(b => b.classList.add('dim'));
+    const okBtn = document.querySelector('.status-btn.ok');
+    if (okBtn) { okBtn.classList.remove('dim'); okBtn.classList.add('pulse'); }
+    submit();
   }
 
   function showCustomInput(field) {
@@ -1791,9 +1965,14 @@
       return;
     }
     clearError();
-    if (step===1) { session.tech = document.getElementById('f-tech').value.trim(); saveSession(); }
+    if (step===1) {
+      session.tech = document.getElementById('f-tech').value.trim();
+      addTechHistory(session.tech);
+      saveSession();
+    }
     if (step===2) {
       session.etab = document.getElementById('f-etab').value.trim();
+      addEtabHistory(session.etab);
       sessionStartStep = 3;
       // Import automatique des toiles déjà inspectées aujourd'hui à cet
       // établissement (peu importe le technicien, peu importe l'appareil).
@@ -1810,6 +1989,11 @@
       d.loc = raw === 'Inconnu' ? 'Inconnu' : normalizeLoc(raw);
       document.getElementById('f-loc').value = d.loc;
     }
+    // ── OCR skip : si l'OCR a rempli marque+type+taille+charge, on saute
+    // de l'étape 4 (localisation) directement à l'étape 9 (statut) ──
+    if (step===4 && ocrFieldsFilled()) {
+      step = 9; showStep(step); return;
+    }
     // Si on est sur le statut (step 9) et que c'est Conforme, on soumet directement
     // (plus d'étape de notes — les notes s'ajoutent via le bouton du bas à tout moment).
     if (step===9 && d.statut==='Conforme') { submit(); return; }
@@ -1821,6 +2005,9 @@
     // Si on revient depuis les issues (step 10) et que statut était Conforme,
     // on saute par-dessus pour revenir au statut.
     if (pv===10 && d.statut==='Conforme') pv = 9;
+    // Si on revient depuis le statut (step 9) et que l'OCR avait sauté les
+    // étapes 5-8, on revient à la localisation (step 4) et non à la charge (8).
+    if (step===9 && ocrFieldsFilled()) pv = 4;
     step = pv; showStep(step);
   }
   function pickStatus(val) {
