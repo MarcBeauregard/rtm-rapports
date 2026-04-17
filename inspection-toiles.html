@@ -314,34 +314,120 @@
     .history-card-detail { opacity: .85; }
     .history-card-detail strong { font-weight: 700; }
 
-    /* ─── OCR RECAP (affiché au step 9 quand OCR a rempli des champs) ─── */
-    .ocr-recap { display: none; margin-bottom: 18px; }
-    .ocr-recap.show { display: block; }
-    .ocr-recap-card {
-      background: var(--cyan-light);
-      border: 1.5px solid var(--cyan);
+    /* ─── FIELD CARDS (step 3 consolidé) ─── */
+    .field-cards { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; }
+    .field-card {
+      background: var(--bg);
+      border: 2px solid var(--border);
       border-radius: var(--radius);
-      padding: 14px 16px;
+      padding: 12px 14px;
+      transition: border-color .2s, background .2s;
+      position: relative;
     }
-    .ocr-recap-title {
-      font-size: 12px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: .6px; color: var(--navy); margin-bottom: 10px;
-      opacity: .7;
+    .field-card.pick-card {
+      cursor: pointer; user-select: none;
     }
-    .ocr-recap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; }
-    .ocr-recap-item { font-size: 14px; line-height: 1.35; }
-    .ocr-recap-label { font-weight: 700; color: var(--navy); font-size: 11px; text-transform: uppercase; letter-spacing: .4px; }
-    .ocr-recap-val { color: var(--text); }
-    .ocr-recap-edit {
-      display: inline-block; margin-top: 10px; font-size: 13px;
-      color: var(--navy); text-decoration: underline; cursor: pointer;
-      background: none; border: none; padding: 0; font-family: inherit;
+    .field-card.pick-card:active { background: #eef2f7; }
+    .field-card.filled {
+      border-color: var(--navy);
+      background: var(--cyan-light);
     }
-    /* Bouton « Tout est bon → Conforme » */
+    .field-card.empty {
+      border-style: dashed;
+      border-color: var(--amber);
+      background: #fffbf0;
+    }
+    .field-card.empty.pulse-empty { animation: pulseEmpty .6s ease-out; }
+    @keyframes pulseEmpty {
+      0%   { box-shadow: 0 0 0 0 rgba(217,119,6,.35); }
+      60%  { box-shadow: 0 0 0 10px rgba(217,119,6,0); }
+      100% { box-shadow: 0 0 0 0 rgba(217,119,6,0); }
+    }
+    .field-card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; margin-bottom: 2px;
+    }
+    .field-card-label {
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .5px;
+      color: var(--navy); opacity: .75;
+    }
+    .field-card.empty .field-card-label { color: #92400e; opacity: 1; }
+    .field-card-status {
+      width: 22px; height: 22px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 800; flex-shrink: 0;
+      background: #d1d9e6; color: #6b7280; /* neutre par défaut (ex. loc optionnelle vide) */
+    }
+    .field-card.filled .field-card-status {
+      background: var(--success); color: #fff;
+    }
+    .field-card.empty .field-card-status {
+      background: var(--amber); color: #fff;
+    }
+    .field-card-value {
+      font-size: 17px; font-weight: 600; color: var(--text);
+      line-height: 1.3; word-break: break-word;
+    }
+    .field-card.empty .field-card-value {
+      color: #b45309; font-weight: 500; font-style: italic;
+    }
+    .field-card .field-card-input {
+      width: 100%;
+      padding: 4px 0 2px;
+      font-size: 17px; font-weight: 600;
+      border: none; border-radius: 0;
+      background: transparent; color: var(--text);
+      outline: none; appearance: none; font-family: inherit;
+    }
+    .field-card .field-card-input::placeholder { color: #c5cdd8; font-weight: 400; font-style: italic; }
+    .field-card-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .field-card-tap-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .field-card.empty .field-card-tap-hint { color: #b45309; font-weight: 600; }
+
+    /* ─── PICKER SHEET (bottom-sheet pour choisir un champ) ─── */
+    .picker-overlay {
+      position: fixed; inset: 0; background: rgba(15, 23, 42, .55);
+      opacity: 0; pointer-events: none; transition: opacity .2s;
+      z-index: 998;
+    }
+    .picker-overlay.show { opacity: 1; pointer-events: auto; }
+    .picker-sheet {
+      position: fixed; left: 0; right: 0; bottom: 0;
+      background: var(--white);
+      border-top-left-radius: 22px; border-top-right-radius: 22px;
+      box-shadow: 0 -12px 40px rgba(0,0,0,.22);
+      padding: 10px 20px calc(24px + env(safe-area-inset-bottom, 0));
+      max-height: 85vh; overflow-y: auto;
+      transform: translateY(100%); transition: transform .28s cubic-bezier(.25,.46,.45,.94);
+      z-index: 999;
+    }
+    .picker-sheet.show { transform: translateY(0); }
+    .picker-handle {
+      width: 46px; height: 5px; border-radius: 3px;
+      background: #d1d9e6; margin: 0 auto 14px;
+    }
+    .picker-title {
+      font-size: 19px; font-weight: 800; color: var(--navy);
+      text-align: center; margin-bottom: 16px;
+    }
+    .picker-scan-btn {
+      margin-top: 0; margin-bottom: 14px;
+      padding: 14px 18px; font-size: 15px;
+    }
+    .picker-close {
+      display: block; width: 100%;
+      margin-top: 14px; padding: 14px;
+      background: transparent; color: var(--text-muted);
+      border: none; font-size: 15px; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+    }
+
+    /* Bouton « Tout est bon → Conforme » (toujours visible sur step 4) */
     .btn-fast-conforme {
       width: 100%;
       padding: 18px 20px;
-      margin-top: 16px;
+      margin-bottom: 16px;
       background: linear-gradient(135deg, var(--success) 0%, #047857 100%);
       color: #fff;
       border: none;
@@ -349,12 +435,11 @@
       font-size: 17px; font-weight: 700;
       font-family: inherit;
       cursor: pointer;
-      display: none; align-items: center; justify-content: center; gap: 10px;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
       box-shadow: 0 4px 14px rgba(5, 150, 105, 0.25);
       transition: transform .15s, box-shadow .15s;
       user-select: none;
     }
-    .btn-fast-conforme.show { display: flex; }
     .btn-fast-conforme:active { transform: scale(.97); box-shadow: 0 2px 8px rgba(5, 150, 105, 0.2); }
 
     .custom-input-wrap { display: none; margin-top: 10px; }
@@ -835,8 +920,8 @@
     </div>
 
     <div class="step" id="step-3">
-      <div class="step-q">Numéro de toile</div>
-      <div class="step-hint">Identifiant de la toile inspectée</div>
+      <div class="step-q">Détails de la toile</div>
+      <div class="step-hint">Scanne l'étiquette — les champs manquants apparaissent en ambré.</div>
 
       <button type="button" class="btn-scan" id="btnScanEtiquette" onclick="triggerScan()">
         <span class="scan-icon">📷</span>
@@ -849,74 +934,73 @@
         <div class="ocr-shimmer" style="width:80%"></div>
         <div class="ocr-shimmer" style="width:45%"></div>
       </div>
-      <div class="scan-divider">ou saisir à la main</div>
 
-      <input class="field" id="f-num" type="text" placeholder="Ex : T-2024-001" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" inputmode="text" oninput="lookupHistory(this.value.trim())">
-      <div class="history-card" id="numHistoryCard"></div>
-      <div class="quick-picks-label" id="cloneLabel" style="display:none">Gagner du temps</div>
-      <div class="quick-picks" id="cloneWrap"></div>
+      <div class="field-cards" id="fieldCards">
+        <!-- N° de toile (input embarqué) -->
+        <div class="field-card input-card empty" id="card-num">
+          <div class="field-card-header">
+            <span class="field-card-label">Numéro de toile</span>
+            <span class="field-card-status" id="status-num">!</span>
+          </div>
+          <input class="field-card-input" id="f-num" type="text" placeholder="Ex : T-2024-001" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" inputmode="text" oninput="handleNumInput(this.value)">
+          <div class="history-card" id="numHistoryCard"></div>
+          <div class="quick-picks-label" id="cloneLabel" style="display:none">Gagner du temps</div>
+          <div class="quick-picks" id="cloneWrap"></div>
+        </div>
+
+        <!-- Localisation (input embarqué — optionnel) -->
+        <div class="field-card input-card empty" id="card-loc">
+          <div class="field-card-header">
+            <span class="field-card-label">Localisation (optionnel)</span>
+            <span class="field-card-status" id="status-loc">!</span>
+          </div>
+          <input class="field-card-input" id="f-loc" type="text" placeholder="Ex : Chambre 214, Dupont, INV-4821" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" inputmode="text" oninput="handleLocInput(this.value)">
+          <div class="quick-picks">
+            <button class="quick-pick" onclick="pickLoc('Inconnu')">Inconnu</button>
+          </div>
+          <div class="quick-picks-label" id="locRecentLabel" style="display:none">Récents pour cet établissement</div>
+          <div class="quick-picks" id="locRecentPicks"></div>
+        </div>
+
+        <!-- Marque (tap → picker) -->
+        <div class="field-card pick-card empty" id="card-marque" onclick="openFieldPicker('marque')">
+          <div class="field-card-header">
+            <span class="field-card-label">Marque</span>
+            <span class="field-card-status" id="status-marque">!</span>
+          </div>
+          <div class="field-card-value" id="value-marque">Toucher pour choisir…</div>
+        </div>
+
+        <!-- Type (tap → picker) -->
+        <div class="field-card pick-card empty" id="card-type" onclick="openFieldPicker('type')">
+          <div class="field-card-header">
+            <span class="field-card-label">Type de toile</span>
+            <span class="field-card-status" id="status-type">!</span>
+          </div>
+          <div class="field-card-value" id="value-type">Toucher pour choisir…</div>
+        </div>
+
+        <!-- Taille (tap → picker) -->
+        <div class="field-card pick-card empty" id="card-taille" onclick="openFieldPicker('taille')">
+          <div class="field-card-header">
+            <span class="field-card-label">Taille</span>
+            <span class="field-card-status" id="status-taille">!</span>
+          </div>
+          <div class="field-card-value" id="value-taille">Toucher pour choisir…</div>
+        </div>
+
+        <!-- Charge max (tap → picker) -->
+        <div class="field-card pick-card empty" id="card-charge" onclick="openFieldPicker('charge')">
+          <div class="field-card-header">
+            <span class="field-card-label">Charge maximale</span>
+            <span class="field-card-status" id="status-charge">!</span>
+          </div>
+          <div class="field-card-value" id="value-charge">Toucher pour choisir…</div>
+        </div>
+      </div>
     </div>
 
     <div class="step" id="step-4">
-      <div class="step-q">Identifiant / Localisation</div>
-      <div class="step-hint">Chambre, nom du patient, numéro d'inventaire ou autre identifiant interne</div>
-      <input class="field" id="f-loc" type="text" placeholder="Ex : Chambre 214, Dupont, INV-4821" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" inputmode="text" oninput="filterLocSuggestions()">
-      <div class="quick-picks">
-        <button class="quick-pick" onclick="pickLoc('Inconnu')">Inconnu</button>
-      </div>
-      <div class="quick-picks-label" id="locRecentLabel" style="display:none">Récents pour cet établissement</div>
-      <div class="quick-picks" id="locRecentPicks"></div>
-    </div>
-
-    <div class="step" id="step-5">
-      <div class="step-q">Marque</div>
-      <div class="step-hint">Sélectionnez ou entrez le fabricant</div>
-      <div class="choice-grid" id="marque-grid"></div>
-      <div class="custom-input-wrap" id="marque-custom">
-        <input class="field" id="marque-custom-input" type="text" placeholder="Nom du fabricant" inputmode="text" autocorrect="off" autocapitalize="words" spellcheck="false">
-        <button class="btn-confirm" onclick="confirmCustom('marque')">OK</button>
-      </div>
-    </div>
-
-    <div class="step" id="step-6">
-      <div class="step-q">Type de toile</div>
-      <div class="step-hint">Sélectionnez ou entrez le type</div>
-      <div class="choice-grid" id="type-grid"></div>
-      <div class="custom-input-wrap" id="type-custom">
-        <input class="field" id="type-custom-input" type="text" placeholder="Précisez le type" inputmode="text" autocorrect="off" autocapitalize="sentences" spellcheck="false">
-        <button class="btn-confirm" onclick="confirmCustom('type')">OK</button>
-      </div>
-    </div>
-
-    <div class="step" id="step-7">
-      <div class="step-q">Taille</div>
-      <div class="step-hint">Sélectionnez la taille indiquée sur la toile</div>
-      <div class="choice-grid" id="taille-grid"></div>
-      <div class="custom-input-wrap" id="taille-custom">
-        <input class="field" id="taille-custom-input" type="text" placeholder="Précisez la taille" inputmode="text" autocorrect="off" autocapitalize="characters" spellcheck="false">
-        <button class="btn-confirm" onclick="confirmCustom('taille')">OK</button>
-      </div>
-    </div>
-
-    <div class="step" id="step-8">
-      <div class="step-q">Charge maximale</div>
-      <div class="step-hint">Capacité indiquée sur l'étiquette de la toile</div>
-      <div class="choice-grid" id="charge-grid"></div>
-      <div class="custom-input-wrap" id="charge-custom">
-        <input class="field" id="charge-custom-input" type="text" placeholder="Ex : 350 lb" inputmode="text" autocorrect="off" autocapitalize="none" spellcheck="false">
-        <button class="btn-confirm" onclick="confirmCustom('charge')">OK</button>
-      </div>
-    </div>
-
-    <div class="step" id="step-9">
-      <!-- Récap OCR visible si on a sauté des étapes grâce au scan -->
-      <div class="ocr-recap" id="ocrRecap">
-        <div class="ocr-recap-card">
-          <div class="ocr-recap-title">Valeurs lues par le scan</div>
-          <div class="ocr-recap-grid" id="ocrRecapGrid"></div>
-          <button class="ocr-recap-edit" onclick="goBackToDetails()">Modifier un champ</button>
-        </div>
-      </div>
       <div class="step-q">Statut de la toile</div>
       <div class="step-hint">La toile passe-t-elle l'inspection ?</div>
       <button type="button" class="btn-fast-conforme" id="btnFastConforme" onclick="fastConforme()">
@@ -928,7 +1012,7 @@
       </div>
     </div>
 
-    <div class="step" id="step-10">
+    <div class="step" id="step-5">
       <div class="step-q">Points non conformes</div>
       <div class="step-hint">Cochez tout ce qui s'applique</div>
       <div class="checklist">
@@ -951,6 +1035,23 @@
     </div>
 
   </div><!-- /steps -->
+
+  <!-- ═══ PICKER SHEET (bottom-sheet universel pour marque/type/taille/charge) ═══ -->
+  <div class="picker-overlay" id="pickerOverlay" onclick="closeFieldPicker()"></div>
+  <div class="picker-sheet" id="pickerSheet" role="dialog" aria-modal="true">
+    <div class="picker-handle"></div>
+    <div class="picker-title" id="pickerTitle">Choisir</div>
+    <button type="button" class="btn-scan picker-scan-btn" id="btnPickerScan" onclick="triggerScanForCurrent()">
+      <span class="scan-icon">📷</span>
+      <span>Re-scanner l'étiquette</span>
+    </button>
+    <div class="choice-grid" id="picker-grid"></div>
+    <div class="custom-input-wrap" id="picker-custom">
+      <input class="field" id="picker-custom-input" type="text" placeholder="Précisez…" inputmode="text" autocorrect="off" spellcheck="false">
+      <button class="btn-confirm" onclick="confirmPickerCustom()">OK</button>
+    </div>
+    <button type="button" class="picker-close" onclick="closeFieldPicker()">Annuler</button>
+  </div>
 
   <!-- ═══ FAB PHOTO + NOTE ═══ -->
   <div class="fab-wrap" id="fabWrap">
@@ -1100,7 +1201,14 @@
   const DEFAULT_TYPES   = ['Salle de bain', 'Double cuissarde'];
   const DEFAULT_TAILLES = ['S', 'M', 'L', 'XL', 'XXL'];
   const DEFAULT_CHARGES = ['175 lb', '275 lb', '440 lb', '660 lb', '880 lb'];
-  const LAST_STEP       = 10;
+  // Étapes : 1 tech · 2 étab · 3 détails toile (consolidé) · 4 statut · 5 issues NC
+  const LAST_STEP       = 5;
+  // Champ cible d'un scan OCR : null = scan global (step 3), sinon nom du champ
+  // (marque/type/taille/charge/num) → applique uniquement ce champ. Utilisé
+  // par le re-scan depuis le picker-sheet pour corriger un seul champ.
+  let scanTarget = null;
+  // Champ actuellement affiché dans le bottom-sheet picker (marque/type/taille/charge)
+  let pickerField = null;
 
   // ─── STATE ──────────────────────────────────────────────
   let step = 1, sessionStartStep = 1;
@@ -1729,7 +1837,7 @@
     document.getElementById('f-loc').value   = d.loc;
     resetChecklistUI();
     d.issues.forEach(val => {
-      const item = [...document.querySelectorAll('#step-10 .check-item[data-val]')].find(el => el.dataset.val === val);
+      const item = [...document.querySelectorAll('#step-5 .check-item[data-val]')].find(el => el.dataset.val === val);
       if (item) item.classList.add('on');
     });
     document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('dim'));
@@ -1737,6 +1845,8 @@
     document.getElementById('editBanner').classList.add('show');
     document.getElementById('btnNext').disabled = false;
     showFormUI(); step = 3; showStep(step);
+    // Les field-cards doivent refléter les valeurs pré-remplies
+    refreshFieldCards();
   }
 
   function showFormUI() {
@@ -1747,14 +1857,11 @@
 
   // ─── PROGRESS ───────────────────────────────────────────
   function updateProgress() {
+    // Étapes totales depuis le début de la session (tech/etab compris ou non)
     const sessionSteps = sessionStartStep === 1 ? LAST_STEP : LAST_STEP - 2;
-    // Si OCR a rempli les étapes 5-8, on a 4 étapes en moins
-    const ocrSkip = ocrFieldsFilled() ? 4 : 0;
-    const base  = d.statut === 'Non conforme' ? sessionSteps : sessionSteps - 1;
-    const total = base - ocrSkip;
-    // Calculer le numéro d'étape affiché en tenant compte du skip
-    let cur = step - (sessionStartStep - 1);
-    if (ocrSkip && step >= 9) cur -= ocrSkip;
+    // On n'affiche l'étape « issues NC » que si le statut est Non conforme
+    const total = d.statut === 'Non conforme' ? sessionSteps : sessionSteps - 1;
+    const cur   = step - (sessionStartStep - 1);
     document.getElementById('progressFill').style.width = Math.min((cur/total)*100, 100) + '%';
     document.getElementById('progressLabel').textContent = `Étape ${cur} sur ${total}`;
   }
@@ -1781,17 +1888,15 @@
     }
     if (n === 1) renderTechHistory();
     if (n === 2) { renderEtabSuggestions(); renderEtabHistory(); }
-    if (n === 3) renderCloneSuggestions();
-    if (n === 4) renderLocSuggestions();
-    if (n === 5) buildChoiceGrid('marque');
-    if (n === 6) buildChoiceGrid('type');
-    if (n === 7) buildChoiceGrid('taille');
-    if (n === 8) buildChoiceGrid('charge');
-    if (n === 9) renderOcrRecap();
+    if (n === 3) { renderCloneSuggestions(); renderLocSuggestions(); refreshFieldCards(); }
     clearError();
     updateProgress(); updateHeader(); updatePhotoBar();
-    const inp = document.getElementById('step-'+n).querySelector('input:not([id$="-custom-input"]):not([type="file"]), textarea');
-    if (inp) setTimeout(() => inp.focus(), 300);
+    // Pas d'auto-focus sur step 3 : les field-cards vides signalent déjà
+    // où taper ; ouvrir le clavier automatiquement ferait scroller la page.
+    if (n !== 3) {
+      const inp = document.getElementById('step-'+n).querySelector('input:not([id$="-custom-input"]):not([type="file"]), textarea');
+      if (inp) setTimeout(() => inp.focus(), 300);
+    }
   }
 
   function updateHeader() {
@@ -1803,16 +1908,95 @@
     } else { hs.style.display = 'none'; }
   }
 
-  // ─── CHOICE GRIDS ───────────────────────────────────────
-  function buildChoiceGrid(field) {
-    const grid     = document.getElementById(field+'-grid');
+  // ─── FIELD CARDS (état des cartes sur step 3) ───────────
+  // Met à jour l'apparence visuelle de chaque carte en fonction de d[field] :
+  // verte ✓ si remplie, ambre dashed avec ! si vide.
+  const FIELD_LABELS_SHORT = {
+    num:    'Toucher pour saisir…',
+    loc:    'Aucune (facultatif)',
+    marque: 'Toucher pour choisir…',
+    type:   'Toucher pour choisir…',
+    taille: 'Toucher pour choisir…',
+    charge: 'Toucher pour choisir…',
+  };
+  function refreshFieldCards() {
+    // num/loc sont des inputs : on lit leur valeur courante
+    const numVal = (document.getElementById('f-num')?.value || '').trim();
+    const locVal = (document.getElementById('f-loc')?.value || '').trim();
+    setFieldCardState('num',    !!numVal);
+    // Loc est optionnelle : jamais ambré (pas de ! rouge), mais verte ✓ si rempli
+    const locCard = document.getElementById('card-loc');
+    if (locCard) {
+      locCard.classList.toggle('filled', !!locVal);
+      locCard.classList.toggle('empty',  false);
+      const status = document.getElementById('status-loc');
+      if (status) status.textContent = locVal ? '\u2713' : '\u00b7';
+    }
+    ['marque','type','taille','charge'].forEach(f => {
+      setFieldCardState(f, !!d[f]);
+      const valEl = document.getElementById('value-' + f);
+      if (valEl) valEl.textContent = d[f] || FIELD_LABELS_SHORT[f];
+    });
+  }
+  function setFieldCardState(field, filled) {
+    const card = document.getElementById('card-' + field);
+    if (!card) return;
+    card.classList.toggle('filled', !!filled);
+    card.classList.toggle('empty',  !filled);
+    const status = document.getElementById('status-' + field);
+    if (status) status.textContent = filled ? '\u2713' : '!';
+  }
+  // Handlers pour les inputs embarqués (num, loc) — mettent à jour l'état
+  // de la carte en live et déclenchent les suggestions/historique.
+  function handleNumInput(val) {
+    d.num = (val || '').trim();
+    refreshFieldCards();
+    lookupHistory(d.num);
+  }
+  function handleLocInput(val) {
+    d.loc = (val || '').trim();
+    refreshFieldCards();
+    filterLocSuggestions();
+  }
+
+  // ─── PICKER SHEET (bottom-sheet universel) ──────────────
+  const PICKER_TITLES = {
+    marque: 'Marque',
+    type:   'Type de toile',
+    taille: 'Taille',
+    charge: 'Charge maximale',
+  };
+  function openFieldPicker(field) {
+    if (!['marque','type','taille','charge'].includes(field)) return;
+    // Si la carte est cliquée via un event bubbling, on évite la fermeture du FAB
+    // (qui écoute le document click) en arrêtant la propagation plus loin.
+    closeFab();
+    haptic(8);
+    pickerField = field;
+    document.getElementById('pickerTitle').textContent = PICKER_TITLES[field];
+    buildPickerGrid(field);
+    // Reset custom input
+    const customWrap = document.getElementById('picker-custom');
+    customWrap.classList.remove('show');
+    document.getElementById('picker-custom-input').value = '';
+    // Afficher l'overlay + sheet
+    document.getElementById('pickerOverlay').classList.add('show');
+    document.getElementById('pickerSheet').classList.add('show');
+  }
+  function closeFieldPicker() {
+    pickerField = null;
+    document.getElementById('pickerOverlay').classList.remove('show');
+    document.getElementById('pickerSheet').classList.remove('show');
+    document.getElementById('picker-custom').classList.remove('show');
+  }
+  function buildPickerGrid(field) {
+    const grid     = document.getElementById('picker-grid');
     const custom   = getCustom(field);
     const defaults = field === 'type'   ? DEFAULT_TYPES
                    : field === 'taille' ? DEFAULT_TAILLES
                    : field === 'charge' ? DEFAULT_CHARGES
                    : [];
     const defaultsN = defaults.map(x => norm(x));
-    // Dédoublonne custom vs defaults ET custom vs custom (accents, casse)
     const seen = new Set(defaultsN);
     const uniqueCustom = custom.filter(c => { const n = norm(c); if (seen.has(n)) return false; seen.add(n); return true; });
     const all = [...defaults, ...uniqueCustom];
@@ -1823,26 +2007,21 @@
       btn.className = 'choice-btn' + (d[field]===val?' selected':'');
       btn.dataset.val = val;
       btn.innerHTML = val + checkSvg;
-      btn.onclick = () => pickChoice(field, val, btn);
-      // Appui long pour supprimer (uniquement les entrées custom, pas les défauts)
+      btn.onclick = () => pickPickerChoice(field, val, btn);
       const isRemovable = !defaultsN.includes(norm(val));
       if (isRemovable) attachLongPressDelete(btn, field, val);
       grid.appendChild(btn);
     });
     const addBtn = document.createElement('div');
     addBtn.className = 'choice-btn add-btn'; addBtn.textContent = '+ Autre…';
-    addBtn.onclick = () => showCustomInput(field);
+    addBtn.onclick = () => showPickerCustomInput();
     grid.appendChild(addBtn);
-
-    // Hint affiché une seule fois quand il y a des entrées custom supprimables
     if (all.some(v => !defaultsN.includes(norm(v))) && !localStorage.getItem('rtm_longpressHintSeen')) {
       showToast('Astuce : appui long sur une entrée pour la supprimer.', 5500);
       localStorage.setItem('rtm_longpressHintSeen', '1');
     }
   }
-
   // Attache un handler d'appui long (~600ms) qui propose la suppression de l'entrée.
-  // Annule le clic court qui suivrait, pour ne pas re-sélectionner l'entrée qu'on vient de supprimer.
   function attachLongPressDelete(el, field, val) {
     let timer = null, fired = false, startX = 0, startY = 0;
     const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
@@ -1854,9 +2033,9 @@
         if (navigator.vibrate) navigator.vibrate(40);
         if (confirm(`Supprimer « ${val} » de la liste ?`)) {
           removeCustomEntry(field, val);
-          // Si la valeur supprimée était sélectionnée, on la déselectionne
           if (d[field] === val) d[field] = '';
-          buildChoiceGrid(field);
+          buildPickerGrid(field);
+          refreshFieldCards();
         }
       }, 600);
     });
@@ -1864,29 +2043,52 @@
     el.addEventListener('pointerleave', cancel);
     el.addEventListener('pointercancel',cancel);
     el.addEventListener('pointermove',  (e) => {
-      // Si le doigt bouge de plus de 10px, on annule (c'est un scroll, pas un appui)
       if (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10) cancel();
     });
-    // Empêche le click court de se déclencher après un appui long
     el.addEventListener('click', (e) => {
       if (fired) { e.preventDefault(); e.stopImmediatePropagation(); fired = false; }
     }, true);
-    // Empêche le menu contextuel iOS qui sort sur appui long
     el.addEventListener('contextmenu', (e) => e.preventDefault());
   }
-  function pickChoice(field, val, el) {
+  function pickPickerChoice(field, val, el) {
     haptic(8);
     d[field] = val;
-    document.querySelectorAll('#'+field+'-grid .choice-btn').forEach(b=>b.classList.remove('selected'));
+    document.querySelectorAll('#picker-grid .choice-btn').forEach(b=>b.classList.remove('selected'));
     el.classList.add('selected');
     el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse');
-    document.getElementById(field+'-custom').classList.remove('show');
-    // Validation croisée type/charge : avertit si la combinaison est inhabituelle
-    // sans bloquer la progression (le tech peut toujours continuer).
+    refreshFieldCards();
     const warn = chargeTypeWarning(d.type, d.charge);
-    const delay = warn ? 600 : 300;
-    if (warn) { haptic(25); showToast('⚠ ' + warn, 3500); }
-    setTimeout(next, delay);
+    if (warn) { haptic(25); showToast('\u26a0 ' + warn, 3500); }
+    // Ferme le picker après un court délai pour que l'utilisateur voie la sélection
+    setTimeout(closeFieldPicker, 220);
+  }
+  function showPickerCustomInput() {
+    const w = document.getElementById('picker-custom');
+    w.classList.add('show');
+    setTimeout(() => document.getElementById('picker-custom-input').focus(), 80);
+  }
+  function confirmPickerCustom() {
+    if (!pickerField) return;
+    const input = document.getElementById('picker-custom-input');
+    const val   = input.value.trim();
+    if (!val) return;
+    addCustomEntry(pickerField, val);
+    d[pickerField] = val;
+    buildPickerGrid(pickerField);
+    refreshFieldCards();
+    const warn = chargeTypeWarning(d.type, d.charge);
+    if (warn) { haptic(25); showToast('\u26a0 ' + warn, 3500); }
+    setTimeout(closeFieldPicker, 220);
+  }
+  // Déclenche le scanner en mode « ciblé » pour le champ du picker courant.
+  // Résultat : seul le champ correspondant (ex. charge_max) sera appliqué par
+  // applyOcrResult() ; les autres champs de la toile ne seront pas écrasés.
+  function triggerScanForCurrent() {
+    if (!pickerField) return;
+    scanTarget = pickerField;
+    closeFieldPicker();
+    // Petit délai pour laisser la sheet s'animer avant d'ouvrir la caméra
+    setTimeout(triggerScan, 200);
   }
 
   // Retourne un message d'avertissement si la combinaison type/charge est aberrante,
@@ -1966,12 +2168,12 @@
       d.num = newNum;
       document.getElementById('f-num').value = newNum;
     }
-    // On saute directement à la localisation. La marque/type/taille/charge sont
-    // déjà remplies et seront re-présentées pour confirmation si le tech veut
-    // corriger via le bouton Retour.
-    if (newNum) { step = 4; showStep(step); }
-    else        { document.getElementById('f-num').focus(); }
-    showToast(newNum ? `Copie + ${newNum} — vérifie la localisation.` : 'Détails copiés — entre le N° de toile.', 2800);
+    // Les 4 champs (marque/type/taille/charge) passent directement en vert ✓
+    // sur les field-cards ; le tech peut toucher la carte Localisation pour
+    // l'input direct, ou n'importe quelle carte pour corriger.
+    refreshFieldCards();
+    if (!newNum) document.getElementById('f-num').focus();
+    showToast(newNum ? `Copie + ${newNum} — complète la localisation si souhaitée.` : 'Détails copiés — entre le N° de toile.', 2800);
   }
 
   // ─── OCR ÉTIQUETTE (Claude Haiku Vision via Worker) ─────
@@ -2063,41 +2265,41 @@
     return partial || v;
   }
   function applyOcrResult(r) {
+    // scanTarget=null → scan global (applique tout). Sinon → on ne prend que
+    // le champ ciblé (re-scan depuis le picker pour corriger un seul champ).
+    const target = scanTarget; // snapshot avant reset
+    const only = (f) => target === null || target === f;
     // Compteur de champs remplis pour le feedback.
     const filled = [];
 
     // N° de série → f-num + d.num
-    if (r.num_serie) {
+    if (r.num_serie && only('num')) {
       d.num = String(r.num_serie).trim();
       document.getElementById('f-num').value = d.num;
       filled.push('N°');
     }
-
     // Marque : aucune liste canon (libre) → on enregistre tel quel en custom.
-    if (r.marque) {
+    if (r.marque && only('marque')) {
       d.marque = String(r.marque).trim();
       addCustomEntry('marque', d.marque);
       filled.push('marque');
     }
-
     // Type : liste canonique + on ajoute en custom si inconnu.
-    if (r.type) {
+    if (r.type && only('type')) {
       const t = canonMatch(r.type, DEFAULT_TYPES);
       d.type = t;
       if (!DEFAULT_TYPES.includes(t)) addCustomEntry('type', t);
       filled.push('type');
     }
-
     // Taille : liste canonique.
-    if (r.taille) {
+    if (r.taille && only('taille')) {
       const s = canonMatch(r.taille, DEFAULT_TAILLES);
       d.taille = s;
       if (!DEFAULT_TAILLES.includes(s)) addCustomEntry('taille', s);
       filled.push('taille');
     }
-
     // Charge maximale : normalise « 440lb »/« 440 LB » → « 440 lb ».
-    if (r.charge_max) {
+    if (r.charge_max && only('charge')) {
       let c = String(r.charge_max).trim().replace(/\s*lb\s*$/i, ' lb').replace(/\s*kg\s*$/i, ' kg');
       const cc = canonMatch(c, DEFAULT_CHARGES);
       d.charge = cc;
@@ -2105,8 +2307,17 @@
       filled.push('charge');
     }
 
+    // Reset du scanTarget pour les prochains scans (global par défaut)
+    scanTarget = null;
+
+    // Rafraîchir les field-cards pour refléter les nouvelles valeurs
+    refreshFieldCards();
+
     if (filled.length === 0) {
-      setScanStatus('Aucun champ lisible — essaie une autre photo ou saisis à la main.', true);
+      const msg = target
+        ? `Aucun ${target} lisible sur cette photo — essaie une autre photo ou saisis à la main.`
+        : 'Aucun champ lisible — essaie une autre photo ou saisis à la main.';
+      setScanStatus(msg, true);
       haptic(30);
       return;
     }
@@ -2115,28 +2326,16 @@
     const warn = (typeof chargeTypeWarning === 'function') ? chargeTypeWarning(d.type, d.charge) : null;
 
     haptic(20);
-    const willSkip = ocrFieldsFilled();
-    const statusMsg = willSkip
-      ? '✓ ' + filled.length + ' champs remplis — tu passeras directement au statut après la localisation.'
-      : '✓ ' + filled.length + ' champ(s) rempli(s) : ' + filled.join(', ') + '. Vérifie à chaque étape.';
-    setScanStatus(statusMsg, false);
-    showToast('Étiquette scannée : ' + filled.join(' · '), 3200);
+    setScanStatus('\u2713 ' + filled.length + ' champ(s) rempli(s) : ' + filled.join(', ') + '. Vérifie chaque carte.', false);
+    showToast('Étiquette scannée : ' + filled.join(' \u00b7 '), 3200);
     if (warn) {
-      setTimeout(() => showToast('⚠ ' + warn, 4200), 1100);
+      setTimeout(() => showToast('\u26a0 ' + warn, 4200), 1100);
     }
 
-    // On reste sur l'étape N° de toile pour que le tech valide le numéro.
-    // Si un numéro a été extrait, on peut focus le champ pour édition rapide
-    // et lancer la recherche d'historique.
-    if (d.num) {
-      setTimeout(() => document.getElementById('f-num').focus(), 50);
-      lookupHistory(d.num);
-    }
+    // Lance la recherche d'historique si un numéro a été extrait
+    if (d.num) lookupHistory(d.num);
   }
 
-  // ─── OCR SKIP + RÉCAP + FAST CONFORME ─────────────────
-  // Retourne true si l'OCR a rempli les 4 champs-clés (marque, type, taille, charge).
-  // Quand c'est le cas, on peut sauter les étapes 5-8 et afficher un récap au step 9.
   // ─── HISTORIQUE TOILE (lookup par numéro) ────────────
   // Cherche les inspections précédentes de cette toile dans Airtable.
   // Affiche un résumé dans step 3 pour que le tech sache l'état passé.
@@ -2214,40 +2413,10 @@
     document.getElementById('numHistoryCard').className = 'history-card';
   }
 
-  function ocrFieldsFilled() {
-    return ocrPhoto && d.marque && d.type && d.taille && d.charge;
-  }
-  // Construit le récap visuel des valeurs lues par l'OCR (affiché en haut du step 9).
-  function renderOcrRecap() {
-    const wrap = document.getElementById('ocrRecap');
-    const grid = document.getElementById('ocrRecapGrid');
-    const btn  = document.getElementById('btnFastConforme');
-    if (!ocrFieldsFilled()) {
-      wrap.classList.remove('show');
-      btn.classList.remove('show');
-      return;
-    }
-    const items = [
-      { label: 'N° toile',  val: d.num },
-      { label: 'Localisation', val: d.loc || '—' },
-      { label: 'Marque',    val: d.marque },
-      { label: 'Type',      val: d.type },
-      { label: 'Taille',    val: d.taille },
-      { label: 'Charge max',val: d.charge },
-    ];
-    grid.innerHTML = items.map(i =>
-      `<div class="ocr-recap-item"><div class="ocr-recap-label">${i.label}</div><div class="ocr-recap-val">${i.val || '—'}</div></div>`
-    ).join('');
-    wrap.classList.add('show');
-    btn.classList.add('show');
-  }
-  // Retour aux étapes détaillées (5-8) quand le tech veut corriger un champ OCR.
-  // On désactive le skip en vidant ocrPhoto temporairement, pour que next() ne saute plus.
-  function goBackToDetails() {
-    // Aller au step 5 (marque) pour passer chaque champ en revue.
-    step = 5; showStep(step);
-  }
-  // Raccourci : Conforme direct en 1 tap depuis le récap OCR.
+  // Raccourci : Conforme direct en 1 tap depuis le step 4.
+  // (Auparavant visible seulement si OCR avait rempli tous les champs ; depuis
+  //  le refactor « consolidated step 3 », on arrive toujours sur step 4 avec
+  //  les champs déjà validés, donc le raccourci est toujours pertinent.)
   function fastConforme() {
     haptic(8);
     d.statut = 'Conforme';
@@ -2258,35 +2427,24 @@
     submit();
   }
 
-  function showCustomInput(field) {
-    document.getElementById(field+'-custom').classList.add('show');
-    setTimeout(() => document.getElementById(field+'-custom-input').focus(), 100);
-  }
-  function confirmCustom(field) {
-    const input = document.getElementById(field+'-custom-input');
-    const val = input.value.trim(); if (!val) return;
-    addCustomEntry(field, val); d[field] = val;
-    buildChoiceGrid(field);
-    const btn = [...document.querySelectorAll('#'+field+'-grid .choice-btn')].find(b=>b.dataset.val===val);
-    if (btn) btn.classList.add('selected');
-    document.getElementById(field+'-custom').classList.remove('show');
-    setTimeout(next, 300);
-  }
-
   // ─── NAVIGATION ─────────────────────────────────────────
   // Retourne null si OK, sinon une string explicative
   function validationError() {
     switch(step) {
       case 1: return document.getElementById('f-tech').value.trim() === '' ? 'Entre ton nom pour continuer.' : null;
       case 2: return document.getElementById('f-etab').value.trim() === '' ? 'Indique l\u2019\u00e9tablissement pour continuer.' : null;
-      case 3: return document.getElementById('f-num').value.trim()  === '' ? 'Le num\u00e9ro de toile est requis. Si non disponible, inscris \u00ab Sans num\u00e9ro \u00bb.' : null;
-      case 4: return null;
-      case 5: return d.marque === '' ? 'Choisis une marque ou ajoute-en une nouvelle.' : null;
-      case 6: return d.type   === '' ? 'Choisis un type ou ajoute-en un nouveau.' : null;
-      case 7: return d.taille === '' ? 'Choisis une taille ou pr\u00e9cise-la avec \u00ab Autre \u00bb.' : null;
-      case 8: return d.charge === '' ? 'Choisis la charge maximale ou pr\u00e9cise-la avec \u00ab Autre \u00bb.' : null;
-      case 9: return d.statut === '' ? 'Indique si la toile est conforme ou non.' : null;
-      case 10: return d.issues.length === 0 ? 'Coche au moins un point non conforme (ou retourne en arri\u00e8re pour changer le statut).' : null;
+      case 3: {
+        // Syncer d.num depuis l'input au cas où l'utilisateur tape sans blur
+        d.num = document.getElementById('f-num').value.trim();
+        if (!d.num)    return 'Le num\u00e9ro de toile est requis. Si non disponible, inscris \u00ab Sans num\u00e9ro \u00bb.';
+        if (!d.marque) { flashEmptyCard('marque'); return 'Touche la carte Marque pour la remplir.'; }
+        if (!d.type)   { flashEmptyCard('type');   return 'Touche la carte Type de toile pour la remplir.'; }
+        if (!d.taille) { flashEmptyCard('taille'); return 'Touche la carte Taille pour la remplir.'; }
+        if (!d.charge) { flashEmptyCard('charge'); return 'Touche la carte Charge maximale pour la remplir.'; }
+        return null;
+      }
+      case 4: return d.statut === '' ? 'Indique si la toile est conforme ou non.' : null;
+      case 5: return d.issues.length === 0 ? 'Coche au moins un point non conforme (ou retourne en arri\u00e8re pour changer le statut).' : null;
       default: return null;
     }
   }
@@ -2317,32 +2475,35 @@
       }
       saveSession();
     }
-    if (step===3) d.num   = document.getElementById('f-num').value.trim();
-    if (step===4) {
-      const raw = document.getElementById('f-loc').value.trim();
-      d.loc = raw === 'Inconnu' ? 'Inconnu' : normalizeLoc(raw);
+    if (step===3) {
+      // Les champs ont déjà été validés ci-dessus. On sync le n° et la loc.
+      d.num = document.getElementById('f-num').value.trim();
+      const rawLoc = document.getElementById('f-loc').value.trim();
+      d.loc = rawLoc === 'Inconnu' ? 'Inconnu' : normalizeLoc(rawLoc);
       document.getElementById('f-loc').value = d.loc;
     }
-    // ── OCR skip : si l'OCR a rempli marque+type+taille+charge, on saute
-    // de l'étape 4 (localisation) directement à l'étape 9 (statut) ──
-    if (step===4 && ocrFieldsFilled()) {
-      step = 9; showStep(step); return;
-    }
-    // Si on est sur le statut (step 9) et que c'est Conforme, on soumet directement
-    // (plus d'étape de notes — les notes s'ajoutent via le bouton du bas à tout moment).
-    if (step===9 && d.statut==='Conforme') { submit(); return; }
+    // Statut Conforme → soumet direct (pas d'étape issues NC)
+    if (step===4 && d.statut==='Conforme') { submit(); return; }
     if (step===LAST_STEP) { submit(); return; }
     step = step + 1; showStep(step);
   }
   function back() {
     let pv = step - 1;
-    // Si on revient depuis les issues (step 10) et que statut était Conforme,
-    // on saute par-dessus pour revenir au statut.
-    if (pv===10 && d.statut==='Conforme') pv = 9;
-    // Si on revient depuis le statut (step 9) et que l'OCR avait sauté les
-    // étapes 5-8, on revient à la localisation (step 4) et non à la charge (8).
-    if (step===9 && ocrFieldsFilled()) pv = 4;
+    // Si on revient depuis les issues (step 5) et que statut était Conforme,
+    // on saute par-dessus pour revenir au statut — ne devrait pas arriver
+    // puisque Conforme soumet direct, mais au cas où.
+    if (pv===5 && d.statut==='Conforme') pv = 4;
     step = pv; showStep(step);
+  }
+  // Petit flash sur une carte vide pour attirer l'attention quand on tente
+  // de passer à l'étape suivante sans l'avoir remplie.
+  function flashEmptyCard(field) {
+    const card = document.getElementById('card-' + field);
+    if (!card) return;
+    card.classList.remove('pulse-empty'); void card.offsetWidth;
+    card.classList.add('pulse-empty');
+    // Scroll-into-view pour que le tech voie la carte qui clignote
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
   function pickStatus(val) {
     haptic(val === 'Conforme' ? 8 : 20);
@@ -2379,7 +2540,7 @@
   function confirmAutreCheck() {
     const input = document.getElementById('autre-check-input');
     const val = input.value.trim(); if (!val) return;
-    const checklist = document.querySelector('#step-10 .checklist');
+    const checklist = document.querySelector('#step-5 .checklist');
     const newItem = document.createElement('div');
     newItem.className = 'check-item on'; newItem.dataset.val = val; newItem.dataset.custom = 'true';
     newItem.onclick = function(){ toggleCheck(this); };
@@ -2389,8 +2550,8 @@
     input.value = ''; document.getElementById('autre-check-wrap').style.display = 'none';
   }
   function resetChecklistUI() {
-    document.querySelectorAll('#step-10 .check-item[data-custom]').forEach(el=>el.remove());
-    document.querySelectorAll('#step-10 .check-item').forEach(b=>b.classList.remove('on'));
+    document.querySelectorAll('#step-5 .check-item[data-custom]').forEach(el=>el.remove());
+    document.querySelectorAll('#step-5 .check-item').forEach(b=>b.classList.remove('on'));
     document.getElementById('autre-check-wrap').style.display = 'none';
     document.getElementById('autre-check-input').value = '';
   }
@@ -2506,6 +2667,7 @@
   // ─── NEXT TOILE ─────────────────────────────────────────
   function nextToile() {
     d = freshData(); editingIdx = null; photos = []; ocrPhoto = null; step = 3;
+    scanTarget = null;
     hideHistoryCard();
     document.querySelectorAll('.choice-btn').forEach(b=>b.classList.remove('selected'));
     document.querySelectorAll('.status-btn').forEach(b=>b.classList.remove('dim'));
@@ -2517,6 +2679,7 @@
     document.getElementById('btnNext').disabled = false;
     clearError();
     refreshPhotoUI(); refreshNotesUI(); showFormUI(); showStep(3);
+    refreshFieldCards();
   }
 
   // ─── RESET SESSION ──────────────────────────────────────
@@ -2524,6 +2687,7 @@
     clearSession();
     session = { tech:'', etab:'' }; sessionStartStep = 1;
     d = freshData(); step = 1; submitted = []; editingIdx = null; photos = []; ocrPhoto = null;
+    scanTarget = null;
     document.querySelectorAll('.choice-btn').forEach(b=>b.classList.remove('selected'));
     document.querySelectorAll('.status-btn').forEach(b=>b.classList.remove('dim'));
     resetChecklistUI();
@@ -2533,6 +2697,7 @@
     document.getElementById('btnNext').disabled = false;
     clearError();
     updateCounter(); refreshPhotoUI(); showFormUI(); showStep(1);
+    refreshFieldCards();
   }
 
   // ─── RAPPORT ────────────────────────────────────────────
@@ -2871,7 +3036,8 @@
     haptic(8);
     document.getElementById('f-loc').value = val;
     d.loc = val;
-    step = 5; showStep(step);
+    // On reste sur step 3 : la carte loc passe en vert ✓. Pas d'avance auto.
+    refreshFieldCards();
   }
 
   // ─── ENTER KEY ──────────────────────────────────────────
