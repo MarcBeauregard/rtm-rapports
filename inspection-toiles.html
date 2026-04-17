@@ -297,6 +297,23 @@
     .scan-status.show { display: block; }
     .scan-status.error { background: var(--danger-light); color: var(--danger); }
 
+    /* ─── HISTORIQUE TOILE (affiché au step 3 quand le numéro a un historique) ─── */
+    .history-card {
+      display: none; margin-top: 14px; padding: 12px 14px;
+      border-radius: 10px; font-size: 13.5px; line-height: 1.5;
+      animation: slideFwd .25s ease;
+    }
+    .history-card.show { display: block; }
+    .history-card.warn {
+      background: var(--amber-light); border: 1.5px solid var(--amber); color: #92400e;
+    }
+    .history-card.info {
+      background: var(--cyan-light); border: 1.5px solid var(--cyan); color: var(--navy);
+    }
+    .history-card-title { font-weight: 700; margin-bottom: 4px; font-size: 14px; }
+    .history-card-detail { opacity: .85; }
+    .history-card-detail strong { font-weight: 700; }
+
     /* ─── OCR RECAP (affiché au step 9 quand OCR a rempli des champs) ─── */
     .ocr-recap { display: none; margin-bottom: 18px; }
     .ocr-recap.show { display: block; }
@@ -772,7 +789,8 @@
       </div>
       <div class="scan-divider">ou saisir à la main</div>
 
-      <input class="field" id="f-num" type="text" placeholder="Ex : T-2024-001" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" inputmode="text">
+      <input class="field" id="f-num" type="text" placeholder="Ex : T-2024-001" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" inputmode="text" oninput="lookupHistory(this.value.trim())">
+      <div class="history-card" id="numHistoryCard"></div>
       <div class="quick-picks-label" id="cloneLabel" style="display:none">Gagner du temps</div>
       <div class="quick-picks" id="cloneWrap"></div>
     </div>
@@ -1990,15 +2008,94 @@
     }
 
     // On reste sur l'étape N° de toile pour que le tech valide le numéro.
-    // Si un numéro a été extrait, on peut focus le champ pour édition rapide.
+    // Si un numéro a été extrait, on peut focus le champ pour édition rapide
+    // et lancer la recherche d'historique.
     if (d.num) {
       setTimeout(() => document.getElementById('f-num').focus(), 50);
+      lookupHistory(d.num);
     }
   }
 
   // ─── OCR SKIP + RÉCAP + FAST CONFORME ─────────────────
   // Retourne true si l'OCR a rempli les 4 champs-clés (marque, type, taille, charge).
   // Quand c'est le cas, on peut sauter les étapes 5-8 et afficher un récap au step 9.
+  // ─── HISTORIQUE TOILE (lookup par numéro) ────────────
+  // Cherche les inspections précédentes de cette toile dans Airtable.
+  // Affiche un résumé dans step 3 pour que le tech sache l'état passé.
+  let historyTimer = null;
+  let lastHistoryNum = '';
+  // Mapping fieldId → clé lisible (mêmes IDs que dans todayRecords)
+  const FIELD_MAP_HIST = {
+    fldE00jLaJQ7Empfi: 'date',
+    fldi8y4qz1OENgrgX: 'statut',
+    fldH4H3FuGXkvRv1A: 'issues',
+    fld5xiV0zru9ZuFjO: 'tech',
+    fldk7N7xCbFjgyET0: 'etab',
+  };
+  function lookupHistory(num) {
+    if (!num || num.length < 2) { hideHistoryCard(); return; }
+    if (num === lastHistoryNum) return;
+    clearTimeout(historyTimer);
+    historyTimer = setTimeout(() => fetchHistory(num), 500);
+  }
+  async function fetchHistory(num) {
+    lastHistoryNum = num;
+    try {
+      const res = await fetch(`${API_BASE}/records/history?num=${encodeURIComponent(num)}`);
+      if (!res.ok) { hideHistoryCard(); return; }
+      const json = await res.json();
+      const records = json.records || [];
+      if (records.length === 0) { hideHistoryCard(); return; }
+      showHistoryCard(records, num);
+    } catch { hideHistoryCard(); }
+  }
+  function showHistoryCard(records, num) {
+    const card = document.getElementById('numHistoryCard');
+    const latest = records[0];
+    const f = latest.fields || latest.cellValuesByFieldId || {};
+    // Parse les champs (peuvent être indexés par fieldId ou par nom)
+    const date   = f.fldE00jLaJQ7Empfi || f['Date inspection'] || '';
+    const statut = f.fldi8y4qz1OENgrgX || f['Statut'] || '';
+    const tech   = f.fld5xiV0zru9ZuFjO || f['Technicien'] || '';
+    const etab   = f.fldk7N7xCbFjgyET0 || f['Établissement'] || '';
+    const issues = f.fldH4H3FuGXkvRv1A || f['Points de non-conformité'] || [];
+    // Extraire le nom du statut (peut être objet { name: "Conforme" } ou string)
+    const statutName = typeof statut === 'object' ? (statut.name || '') : String(statut);
+    const issueNames = Array.isArray(issues)
+      ? issues.map(i => typeof i === 'object' ? i.name : i).join(', ')
+      : '';
+    // Formater la date
+    let dateStr = '';
+    if (date) {
+      try {
+        const d2 = new Date(date);
+        dateStr = d2.toLocaleDateString('fr-CA', { day: 'numeric', month: 'long', year: 'numeric' });
+      } catch { dateStr = String(date).substring(0, 10); }
+    }
+    // Détecter doublon même jour
+    const isToday = date && new Date(date).toDateString() === new Date().toDateString();
+    const isNok = statutName === 'Non conforme';
+
+    if (isToday) {
+      card.className = 'history-card show warn';
+      card.innerHTML = `<div class="history-card-title">⚠ Déjà inspectée aujourd'hui</div>
+        <div class="history-card-detail">
+          Par <strong>${tech}</strong> à <strong>${etab}</strong> — ${statutName}${isNok ? ' (' + issueNames + ')' : ''}
+        </div>`;
+    } else {
+      card.className = 'history-card show ' + (isNok ? 'warn' : 'info');
+      card.innerHTML = `<div class="history-card-title">${isNok ? '⚠' : 'ℹ'} Dernière inspection : ${dateStr}</div>
+        <div class="history-card-detail">
+          ${statutName}${isNok ? ' — <strong>' + issueNames + '</strong>' : ''}
+          ${records.length > 1 ? '<br>' + records.length + ' inspections au total pour cette toile.' : ''}
+        </div>`;
+    }
+  }
+  function hideHistoryCard() {
+    lastHistoryNum = '';
+    document.getElementById('numHistoryCard').className = 'history-card';
+  }
+
   function ocrFieldsFilled() {
     return ocrPhoto && d.marque && d.type && d.taille && d.charge;
   }
@@ -2292,6 +2389,7 @@
   // ─── NEXT TOILE ─────────────────────────────────────────
   function nextToile() {
     d = freshData(); editingIdx = null; photos = []; ocrPhoto = null; step = 3;
+    hideHistoryCard();
     document.querySelectorAll('.choice-btn').forEach(b=>b.classList.remove('selected'));
     document.querySelectorAll('.status-btn').forEach(b=>b.classList.remove('dim'));
     resetChecklistUI();
