@@ -1076,12 +1076,16 @@
   // ─── LOCALSTORAGE ───────────────────────────────────────
   function getCustom(k)    { try { return JSON.parse(localStorage.getItem('rtm_'+k)||'[]'); } catch { return []; } }
   function saveCustom(k,a) { localStorage.setItem('rtm_'+k, JSON.stringify(a)); }
+  // Normalise une chaîne pour comparaison : minuscules + sans accents
+  function norm(s) { return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim(); }
   function addCustomEntry(k, v) {
     const a = getCustom(k);
-    if (!a.map(s=>s.toLowerCase()).includes(v.toLowerCase())) { a.push(v); saveCustom(k,a); }
+    const nv = norm(v);
+    if (!a.some(s => norm(s) === nv)) { a.push(v); saveCustom(k,a); }
   }
   function removeCustomEntry(k, v) {
-    const a = getCustom(k).filter(x => x.toLowerCase() !== v.toLowerCase());
+    const nv = norm(v);
+    const a = getCustom(k).filter(x => norm(x) !== nv);
     saveCustom(k, a);
   }
 
@@ -1696,8 +1700,11 @@
                    : field === 'taille' ? DEFAULT_TAILLES
                    : field === 'charge' ? DEFAULT_CHARGES
                    : [];
-    const defaultsLC = defaults.map(x => x.toLowerCase());
-    const all = [...defaults, ...custom.filter(c => !defaultsLC.includes(c.toLowerCase()))];
+    const defaultsN = defaults.map(x => norm(x));
+    // Dédoublonne custom vs defaults ET custom vs custom (accents, casse)
+    const seen = new Set(defaultsN);
+    const uniqueCustom = custom.filter(c => { const n = norm(c); if (seen.has(n)) return false; seen.add(n); return true; });
+    const all = [...defaults, ...uniqueCustom];
     grid.innerHTML = '';
     const checkSvg = '<span class="pick-check"><svg viewBox="0 0 22 22"><circle cx="11" cy="11" r="11"/><polyline points="6,11 10,15 16,7"/></svg></span>';
     all.forEach(val => {
@@ -1707,7 +1714,7 @@
       btn.innerHTML = val + checkSvg;
       btn.onclick = () => pickChoice(field, val, btn);
       // Appui long pour supprimer (uniquement les entrées custom, pas les défauts)
-      const isRemovable = !defaultsLC.includes(val.toLowerCase());
+      const isRemovable = !defaultsN.includes(norm(val));
       if (isRemovable) attachLongPressDelete(btn, field, val);
       grid.appendChild(btn);
     });
@@ -1717,7 +1724,7 @@
     grid.appendChild(addBtn);
 
     // Hint affiché une seule fois quand il y a des entrées custom supprimables
-    if (all.some(v => !defaultsLC.includes(v.toLowerCase())) && !localStorage.getItem('rtm_longpressHintSeen')) {
+    if (all.some(v => !defaultsN.includes(norm(v))) && !localStorage.getItem('rtm_longpressHintSeen')) {
       showToast('Astuce : appui long sur une entrée pour la supprimer.', 5500);
       localStorage.setItem('rtm_longpressHintSeen', '1');
     }
