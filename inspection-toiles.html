@@ -447,21 +447,6 @@
     }
     .photo-thumb-wrap.new { animation: thumbBounce .35s cubic-bezier(.34,1.56,.64,1); }
 
-    /* ─── SUCCESS SCREEN ─── */
-    .success-check-wrap { margin: 0 auto 16px; width: 72px; height: 72px; }
-    .success-check-circle {
-      fill: none; stroke: var(--success); stroke-width: 3;
-      stroke-dasharray: 200; stroke-dashoffset: 200;
-      animation: drawCircle .5s ease-out forwards;
-    }
-    .success-check-tick {
-      fill: none; stroke: var(--success); stroke-width: 3.5;
-      stroke-linecap: round; stroke-linejoin: round;
-      stroke-dasharray: 36; stroke-dashoffset: 36;
-      animation: drawTick .35s ease-out .35s forwards;
-    }
-    @keyframes drawCircle { to { stroke-dashoffset: 0; } }
-    @keyframes drawTick   { to { stroke-dashoffset: 0; } }
     .confetti-container {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       pointer-events: none; z-index: 999; overflow: hidden;
@@ -476,31 +461,149 @@
       100% { transform: translateY(105vh) rotate(720deg);  opacity: 0; }
     }
 
-    /* ─── PHOTO BAR ─── */
-    .photo-bar {
+    /* ─── FAB PHOTO + NOTE ─── */
+    .fab-wrap {
       display: none;
-      padding: 8px 16px;
-      background: var(--white);
-      border-top: 1px solid var(--border);
-      gap: 10px; align-items: center;
+      position: fixed;
+      right: 16px;
+      bottom: calc(96px + env(safe-area-inset-bottom, 0));
+      z-index: 50;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 10px;
+      pointer-events: none;
     }
-    .photo-bar.visible { display: flex; }
-    .btn-photo {
-      flex: 1; padding: 11px 16px;
-      border: 2px dashed var(--border); border-radius: var(--radius);
-      background: var(--bg); color: var(--text-muted);
-      font-size: 14px; font-weight: 600; cursor: pointer;
-      font-family: inherit; display: flex; align-items: center;
-      justify-content: center; gap: 8px; transition: all .2s;
+    .fab-wrap.visible { display: flex; }
+    .fab-wrap > * { pointer-events: auto; }
+
+    .fab-options {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 10px;
+      max-height: 0;
+      overflow: hidden;
+      opacity: 0;
+      transition: max-height .25s ease, opacity .18s ease;
+      pointer-events: none;
     }
-    .btn-photo:active { background: #eef2f7; }
-    .btn-photo.has-photos { border-color: var(--navy); color: var(--navy); background: var(--cyan-light); }
+    .fab-wrap.open .fab-options {
+      max-height: 400px;
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .fab-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transform: translateY(10px) scale(.9);
+      opacity: 0;
+      transition: transform .2s ease, opacity .2s ease;
+    }
+    .fab-wrap.open .fab-option { transform: translateY(0) scale(1); opacity: 1; }
+    .fab-wrap.open .fab-option:nth-child(1) { transition-delay: .04s; }
+    .fab-wrap.open .fab-option:nth-child(2) { transition-delay: .10s; }
+
+    .fab-option-label {
+      background: rgba(17,24,39,.92);
+      color: #fff;
+      font-size: 13px; font-weight: 700;
+      padding: 7px 12px;
+      border-radius: 20px;
+      white-space: nowrap;
+      box-shadow: 0 4px 12px rgba(0,0,0,.2);
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .fab-option-badge {
+      background: var(--cyan);
+      color: var(--navy-dark);
+      border-radius: 20px;
+      font-size: 11px; font-weight: 800;
+      padding: 1px 7px;
+      display: none;
+    }
+    .fab-option-badge.visible { display: inline-block; }
+
+    .fab-option-btn {
+      width: 46px; height: 46px;
+      border-radius: 50%;
+      border: none;
+      background: #fff;
+      color: var(--navy);
+      font-size: 20px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 14px rgba(0,0,0,.18);
+      font-family: inherit;
+      transition: transform .15s ease, background .2s ease;
+    }
+    .fab-option-btn:active { transform: scale(.92); }
+    .fab-option-btn.active { background: var(--cyan-light); color: var(--navy); }
+
+    .fab-thumbs {
+      display: none;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 6px;
+      max-width: 220px;
+    }
+    .fab-wrap.open .fab-thumbs.has-photos { display: flex; }
+
+    .fab-main {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      border: none;
+      background: var(--navy);
+      color: #fff;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 6px 18px rgba(27,52,114,.35);
+      position: relative;
+      font-family: inherit;
+      transition: transform .2s cubic-bezier(.34,1.56,.64,1), background .2s ease;
+      padding: 0;
+    }
+    .fab-main:active { transform: scale(.92); }
+    .fab-main-icon {
+      display: inline-block;
+      font-size: 30px; font-weight: 300; line-height: 1;
+      transition: transform .25s cubic-bezier(.34,1.56,.64,1);
+    }
+    .fab-wrap.open .fab-main-icon { transform: rotate(135deg); }
+    .fab-wrap.open .fab-main { background: var(--navy-dark); }
+
+    .fab-main-badge {
+      position: absolute;
+      top: -4px; right: -4px;
+      min-width: 22px; height: 22px;
+      border-radius: 11px;
+      background: var(--cyan);
+      color: var(--navy-dark);
+      font-size: 11px; font-weight: 800;
+      padding: 0 6px;
+      display: none;
+      align-items: center; justify-content: center;
+      border: 2px solid #fff;
+    }
+    .fab-main-badge.visible { display: flex; }
+
+    /* Badge réutilisé dans les options du FAB — gardé pour compat */
     .photo-count-badge {
       background: var(--navy); color: #fff;
       border-radius: 20px; font-size: 11px; font-weight: 800;
       padding: 2px 8px; display: none;
     }
     .photo-count-badge.visible { display: inline-block; }
+
+    /* ─── MINI CONFETTI (près du compteur) ─── */
+    .confetti-piece.mini {
+      animation: confettiBurst .75s cubic-bezier(.2,.6,.3,1) forwards;
+    }
+    @keyframes confettiBurst {
+      0%   { transform: translate(0,0) rotate(0); opacity: 1; }
+      100% { transform: translate(var(--dx,0), var(--dy,0)) rotate(var(--rot,360deg)); opacity: 0; }
+    }
 
     /* ─── NAV ─── */
     .nav {
@@ -523,38 +626,6 @@
     .btn-next     { background: var(--navy); color: #fff; }
     .btn-send     { background: var(--success); color: #fff; }
     .btn-edit-send{ background: var(--amber); color: #fff; }
-
-    /* ─── SUCCESS ─── */
-    #successScreen {
-      display: none; flex: 1;
-      flex-direction: column;
-      align-items: center; justify-content: center;
-      padding: 48px 28px; text-align: center;
-    }
-    #successScreen.show { display: flex; }
-    /* (success-icon-wrap remplacé par success-check-wrap animé — voir plus haut) */
-    .success-title { font-size: 30px; font-weight: 800; color: var(--text); margin-bottom: 10px; }
-    .success-sub   { font-size: 15px; color: var(--text-muted); margin-bottom: 8px; max-width: 280px; line-height: 1.55; }
-    .success-who   { font-size: 14px; color: var(--text-muted); margin-bottom: 36px; }
-    .success-who strong { color: var(--text); }
-    .btn-new-toile {
-      background: var(--navy); color: #fff;
-      padding: 18px 32px; border-radius: 50px;
-      font-size: 17px; font-weight: 700;
-      border: none; cursor: pointer;
-      width: 100%; max-width: 320px;
-      font-family: inherit; margin-bottom: 14px;
-    }
-    .btn-change-session {
-      background: none;
-      border: 2px solid var(--border);
-      color: var(--text-muted);
-      padding: 13px 24px; border-radius: 50px;
-      font-size: 14px; font-weight: 600;
-      cursor: pointer;
-      width: 100%; max-width: 320px;
-      font-family: inherit;
-    }
 
     /* ─── PHOTO REVIEW MODAL ─── */
     .modal-overlay {
@@ -635,15 +706,6 @@
     }
     .btn-fin-rapport.visible { display: block; }
     .btn-fin-rapport:active { opacity: .85; }
-    .btn-terminer-screen {
-      background: none;
-      border: 2px solid var(--success);
-      color: var(--success);
-      padding: 14px 24px; border-radius: 50px;
-      font-size: 15px; font-weight: 700;
-      cursor: pointer; width: 100%; max-width: 320px;
-      font-family: inherit; margin-bottom: 10px;
-    }
     /* ─── RAPPORT MODAL ─── */
     .rapport-stat-row { display: flex; gap: 10px; margin-bottom: 20px; }
     .rapport-stat {
@@ -890,38 +952,29 @@
 
   </div><!-- /steps -->
 
-  <!-- ═══ SUCCESS ═══ -->
-  <div id="successScreen">
-    <div class="success-check-wrap" id="successCheckWrap">
-      <svg viewBox="0 0 72 72" width="72" height="72">
-        <circle class="success-check-circle" cx="36" cy="36" r="33"/>
-        <polyline class="success-check-tick" points="22,38 32,48 50,26"/>
-      </svg>
-    </div>
-    <div id="confettiZone"></div>
-    <div class="success-title" id="successTitle">Enregistré !!</div>
-    <div class="success-sub"   id="successSub">Entrée bien enregistrée. Si tu dois la corriger, appuie sur le compteur de toiles en haut à droite pour retrouver et modifier cette inspection.</div>
-    <div class="success-who">Technicien : <strong id="s-tech"></strong> · <strong id="s-etab"></strong></div>
-    <button class="btn-new-toile"      onclick="nextToile()">Entrer une autre toile</button>
-    <button class="btn-terminer-screen" id="btnTerminerScreen" onclick="showRapport()" style="display:none">Terminer et générer le rapport</button>
-    <button class="btn-change-session" onclick="resetSession()">Changer de technicien / établissement</button>
-  </div>
-
-  <!-- ═══ PHOTO + NOTES BAR ═══ -->
-  <div class="photo-bar" id="photoBar">
-    <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:6px;">
-      <div style="display:flex; gap:8px;">
-        <button class="btn-photo" id="btnPhoto" onclick="triggerCamera()" style="flex:1;">
-          <span>Ajouter une photo</span>
-          <span class="photo-count-badge" id="photoBadge"></span>
-        </button>
-        <button class="btn-photo" id="btnNotes" onclick="openNotesModal()" style="flex:1;">
-          <span>Ajouter une note</span>
-          <span class="photo-count-badge" id="notesBadge"></span>
-        </button>
+  <!-- ═══ FAB PHOTO + NOTE ═══ -->
+  <div class="fab-wrap" id="fabWrap">
+    <div class="fab-thumbs" id="fabThumbs"></div>
+    <div class="fab-options" id="fabOptions">
+      <div class="fab-option">
+        <span class="fab-option-label">
+          <span id="noteBtnLabel">Ajouter une note</span>
+          <span class="fab-option-badge" id="notesBadge"></span>
+        </span>
+        <button class="fab-option-btn" id="btnNotes" onclick="handleNoteFromFab()" aria-label="Ajouter une note">✎</button>
       </div>
-      <div class="photo-thumbs" id="photoThumbs" style="display:none;"></div>
+      <div class="fab-option">
+        <span class="fab-option-label">
+          <span id="photoBtnLabel">Ajouter une photo</span>
+          <span class="fab-option-badge" id="photoBadge"></span>
+        </span>
+        <button class="fab-option-btn" id="btnPhoto" onclick="handlePhotoFromFab()" aria-label="Ajouter une photo">📷</button>
+      </div>
     </div>
+    <button class="fab-main" id="fabMain" onclick="toggleFab(event)" aria-label="Ajouter photo ou note">
+      <span class="fab-main-icon">+</span>
+      <span class="fab-main-badge" id="fabMainBadge"></span>
+    </button>
   </div>
 
   <!-- ═══ NAV ═══ -->
@@ -1189,26 +1242,44 @@
     toastTimer = setTimeout(() => t.classList.remove('show'), ms);
   }
 
-  // ─── CONFETTI (succès post-submit) ─────────────────────
-  function spawnConfetti() {
-    const zone = document.getElementById('confettiZone');
+  // ─── CONFETTI (burst bref autour du compteur) ──────────
+  // Remplace l'ancien écran de succès plein-écran par un retour direct à la
+  // saisie d'une nouvelle toile : le tech voit juste un toast + quelques
+  // particules qui jaillissent du compteur en haut à droite (visible dès que
+  // submitted > 0). Les actions Terminer/Changer existent déjà dans le header.
+  function spawnMiniConfetti() {
+    const counter = document.getElementById('counterBadge');
+    if (!counter || !counter.classList.contains('visible')) return;
+    const rect = counter.getBoundingClientRect();
+    const originX = rect.left + rect.width / 2;
+    const originY = rect.top + rect.height / 2;
     const container = document.createElement('div');
     container.className = 'confetti-container';
-    const colors = ['#059669','#4ab8e8','#1b3472','#d97706','#dc2626','#7c3aed'];
-    for (let i = 0; i < 28; i++) {
+    const colors = ['#059669','#4ab8e8','#1b3472','#d97706','#fbbf24','#7c3aed'];
+    for (let i = 0; i < 18; i++) {
       const p = document.createElement('div');
-      p.className = 'confetti-piece';
-      p.style.left = Math.random()*100 + '%';
+      p.className = 'confetti-piece mini';
+      p.style.left = (originX - 3) + 'px';
+      p.style.top  = (originY - 3) + 'px';
       p.style.background = colors[Math.floor(Math.random()*colors.length)];
-      p.style.animationDelay = (Math.random()*.6) + 's';
-      p.style.animationDuration = (1.2 + Math.random()*0.8) + 's';
-      p.style.width  = (5 + Math.random()*6) + 'px';
-      p.style.height = (5 + Math.random()*6) + 'px';
+      // Émet vers le haut (arc ±70°) puis retombe par gravité simulée
+      const angle = -Math.PI/2 + (Math.random() - 0.5) * (Math.PI * 1.35);
+      const speed = 55 + Math.random() * 75;
+      const dx = Math.cos(angle) * speed;
+      const dy = Math.sin(angle) * speed + 70;
+      p.style.setProperty('--dx', dx + 'px');
+      p.style.setProperty('--dy', dy + 'px');
+      p.style.setProperty('--rot', (360 + Math.random()*360) + 'deg');
+      const sz = 4 + Math.random()*4;
+      p.style.width  = sz + 'px';
+      p.style.height = sz + 'px';
       p.style.borderRadius = Math.random() > .5 ? '50%' : '2px';
+      p.style.animationDuration = (0.65 + Math.random()*0.3) + 's';
+      p.style.animationDelay = (Math.random()*0.08) + 's';
       container.appendChild(p);
     }
-    zone.appendChild(container);
-    setTimeout(() => container.remove(), 2500);
+    document.body.appendChild(container);
+    setTimeout(() => container.remove(), 1200);
   }
 
   // ─── INLINE ERROR ──────────────────────────────────────
@@ -1419,8 +1490,6 @@
     const prevCount = document.getElementById('counterText').textContent;
     document.getElementById('counterBadge').classList.toggle('visible', n > 0);
     document.getElementById('btnFinRapport').classList.toggle('visible', n > 0);
-    const btnTs = document.getElementById('btnTerminerScreen');
-    if (btnTs) btnTs.style.display = n > 0 ? 'block' : 'none';
     if (n > 0) {
       const txt = n + (n===1?' toile':' toiles');
       const el  = document.getElementById('counterText');
@@ -1440,22 +1509,62 @@
     }
   }
 
-  // ─── PHOTO + NOTES BAR ─────────────────────────────────
+  // ─── FAB PHOTO + NOTE ──────────────────────────────────
+  // Le FAB est visible dès step 3 (N° de toile) et reste dispo pendant toute
+  // la saisie. Il regroupe « Ajouter une photo » + « Ajouter une note » dans
+  // un menu qui se déplie au tap et se replie au tap extérieur (ou au tap sur
+  // le bouton principal). Le compteur badge montre l'état : nb photos, ✓ si
+  // note seule, n+ si les deux.
   function updatePhotoBar() {
-    document.getElementById('photoBar').classList.toggle('visible', step >= 3);
+    document.getElementById('fabWrap').classList.toggle('visible', step >= 3);
+    // Ferme le menu si on change d'étape (sinon il reste ouvert entre les pages)
+    closeFab();
+    refreshPhotoUI();
     refreshNotesUI();
   }
+
+  function updateFabMainBadge() {
+    const n = photos.length;
+    const hasNote = !!(d && d.notes && d.notes.trim());
+    const badge = document.getElementById('fabMainBadge');
+    if (!badge) return;
+    if (n > 0 && hasNote)      { badge.textContent = n + '+'; badge.classList.add('visible'); }
+    else if (n > 0)            { badge.textContent = n;       badge.classList.add('visible'); }
+    else if (hasNote)          { badge.textContent = '✓';     badge.classList.add('visible'); }
+    else                       { badge.classList.remove('visible'); }
+  }
+
+  function toggleFab(ev) {
+    if (ev) ev.stopPropagation();
+    haptic(8);
+    document.getElementById('fabWrap').classList.toggle('open');
+  }
+  function closeFab() {
+    const wrap = document.getElementById('fabWrap');
+    if (wrap) wrap.classList.remove('open');
+  }
+  function handlePhotoFromFab() { closeFab(); triggerCamera(); }
+  function handleNoteFromFab()  { closeFab(); openNotesModal(); }
+
+  // Tap à l'extérieur du FAB → ferme le menu
+  document.addEventListener('click', (e) => {
+    const wrap = document.getElementById('fabWrap');
+    if (!wrap || !wrap.classList.contains('open')) return;
+    if (!wrap.contains(e.target)) closeFab();
+  });
 
   function refreshPhotoUI() {
     const n = photos.length;
     const btn    = document.getElementById('btnPhoto');
     const badge  = document.getElementById('photoBadge');
-    const thumbs = document.getElementById('photoThumbs');
-    btn.classList.toggle('has-photos', n > 0);
-    btn.querySelector('span').textContent = n === 0 ? 'Ajouter une photo' : 'Ajouter une autre photo';
+    const thumbs = document.getElementById('fabThumbs');
+    const label  = document.getElementById('photoBtnLabel');
+    if (!btn || !thumbs) return;
+    btn.classList.toggle('active', n > 0);
+    if (label) label.textContent = n === 0 ? 'Ajouter une photo' : 'Ajouter une autre photo';
     badge.textContent = n;
     badge.classList.toggle('visible', n > 0);
-    thumbs.style.display = n > 0 ? 'flex' : 'none';
+    thumbs.classList.toggle('has-photos', n > 0);
     const prevCount = thumbs.children.length;
     thumbs.innerHTML = '';
     photos.forEach((p, i) => {
@@ -1466,17 +1575,20 @@
         <button class="photo-thumb-del" onclick="removePhoto(${i})">✕</button>`;
       thumbs.appendChild(wrap);
     });
+    updateFabMainBadge();
   }
 
   function refreshNotesUI() {
     const has   = !!(d && d.notes && d.notes.trim());
     const btn   = document.getElementById('btnNotes');
     const badge = document.getElementById('notesBadge');
+    const label = document.getElementById('noteBtnLabel');
     if (!btn) return;
-    btn.classList.toggle('has-photos', has);
-    btn.querySelector('span').textContent = has ? 'Modifier la note' : 'Ajouter une note';
+    btn.classList.toggle('active', has);
+    if (label) label.textContent = has ? 'Modifier la note' : 'Ajouter une note';
     badge.textContent = has ? '✓' : '';
     badge.classList.toggle('visible', has);
+    updateFabMainBadge();
   }
 
   // ─── NOTES MODAL ───────────────────────────────────────
@@ -1631,7 +1743,6 @@
     document.getElementById('stepsWrap').style.display    = 'block';
     document.getElementById('navWrap').style.display      = 'flex';
     document.getElementById('progressWrap').style.display = 'block';
-    document.getElementById('successScreen').classList.remove('show');
   }
 
   // ─── PROGRESS ───────────────────────────────────────────
@@ -2310,36 +2421,35 @@
     const isEdit   = editingIdx !== null;
     const recordId = isEdit ? submitted[editingIdx].recordId : null;
 
-    // Helper qui finalise la sauvegarde locale + écran de succès
+    // Helper qui finalise la sauvegarde locale + enchaîne direct sur la toile suivante.
+    // Plus d'écran de succès intermédiaire : le bouton "Terminer le rapport" et
+    // "Changer" sont déjà accessibles en permanence depuis le header, donc on
+    // peut gagner un tap en allant directement au step 3 après chaque envoi.
     const finalizeSuccess = (recId, queued = false) => {
       const entry = { recordId: recId, num:d.num, loc:d.loc, marque:d.marque,
                       type:d.type, taille:d.taille, charge:d.charge,
                       statut:d.statut, issues:[...d.issues], notes:d.notes,
                       photoCount: photos.length };
+      const numLabel = d.num || '(sans numéro)';
+      const wasEdit  = isEdit;
+      const wasNok   = d.statut === 'Non conforme';
       if (isEdit) submitted[editingIdx] = entry; else submitted.push(entry);
       saveSession();
       updateCounter();
       editingIdx = null;
       document.getElementById('editBanner').classList.remove('show');
-      document.getElementById('successTitle').textContent =
-        queued ? 'En file d\u2019attente' : (isEdit ? 'Modifié !!' : 'Enregistré !!');
-      document.getElementById('successSub').textContent = queued
-        ? 'Pas de réseau pour le moment. Cette toile a été sauvegardée localement et sera envoyée automatiquement dès que la connexion revient.'
-        : (isEdit
-            ? 'La toile a été mise à jour avec succès.'
-            : 'Entrée bien enregistrée. Si tu dois la corriger, appuie sur le compteur de toiles en haut à droite pour retrouver et modifier cette inspection.');
-      document.getElementById('s-tech').textContent = session.tech;
-      document.getElementById('s-etab').textContent = session.etab;
-      document.getElementById('stepsWrap').style.display    = 'none';
-      document.getElementById('navWrap').style.display      = 'none';
-      document.getElementById('progressWrap').style.display = 'none';
-      document.getElementById('photoBar').classList.remove('visible');
-      document.getElementById('successScreen').classList.add('show');
-      // Relance l'animation du check SVG en forçant un re-render
-      const svgWrap = document.getElementById('successCheckWrap');
-      svgWrap.innerHTML = svgWrap.innerHTML;
-      // Confetti léger si pas en file d'attente
-      if (!queued) setTimeout(spawnConfetti, 350);
+
+      // Feedback : toast + mini confetti autour du compteur
+      const toastMsg = queued
+        ? `En file d'attente — ${numLabel} partira dès le retour du réseau`
+        : (wasEdit
+            ? `✓ Toile ${numLabel} mise à jour`
+            : `✓ Toile ${numLabel} enregistrée${wasNok ? ' · Non conforme' : ''}`);
+      showToast(toastMsg, 2800);
+      if (!queued) setTimeout(spawnMiniConfetti, 80);
+
+      // Enchaîne immédiatement sur la saisie d'une nouvelle toile (step 3)
+      nextToile();
     };
 
     // Si offline ET création (pas édition), on envoie en file d'attente
