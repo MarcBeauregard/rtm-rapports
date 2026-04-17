@@ -191,7 +191,7 @@
     .progress-label { font-size: 11px; color: var(--text-muted); text-align: right; margin-top: 6px; }
 
     /* ─── STEPS ─── */
-    .steps { flex: 1; padding: 28px 24px 16px; overflow: hidden; }
+    .steps { flex: 1; padding: 28px 24px 16px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
     .step { display: none; }
     .step.active { display: block; }
     .step.slide-fwd  { animation: slideFwd  .28s cubic-bezier(.25,.46,.45,.94); }
@@ -389,7 +389,7 @@
     .picker-overlay {
       position: fixed; inset: 0; background: rgba(15, 23, 42, .55);
       opacity: 0; pointer-events: none; transition: opacity .2s;
-      z-index: 998;
+      z-index: 1100;
     }
     .picker-overlay.show { opacity: 1; pointer-events: auto; }
     .picker-sheet {
@@ -400,7 +400,7 @@
       padding: 10px 20px calc(24px + env(safe-area-inset-bottom, 0));
       max-height: 85vh; overflow-y: auto;
       transform: translateY(100%); transition: transform .28s cubic-bezier(.25,.46,.45,.94);
-      z-index: 999;
+      z-index: 1101;
     }
     .picker-sheet.show { transform: translateY(0); }
     .picker-handle {
@@ -1036,23 +1036,6 @@
 
   </div><!-- /steps -->
 
-  <!-- ═══ PICKER SHEET (bottom-sheet universel pour marque/type/taille/charge) ═══ -->
-  <div class="picker-overlay" id="pickerOverlay" onclick="closeFieldPicker()"></div>
-  <div class="picker-sheet" id="pickerSheet" role="dialog" aria-modal="true">
-    <div class="picker-handle"></div>
-    <div class="picker-title" id="pickerTitle">Choisir</div>
-    <button type="button" class="btn-scan picker-scan-btn" id="btnPickerScan" onclick="triggerScanForCurrent()">
-      <span class="scan-icon">📷</span>
-      <span>Re-scanner l'étiquette</span>
-    </button>
-    <div class="choice-grid" id="picker-grid"></div>
-    <div class="custom-input-wrap" id="picker-custom">
-      <input class="field" id="picker-custom-input" type="text" placeholder="Précisez…" inputmode="text" autocorrect="off" spellcheck="false">
-      <button class="btn-confirm" onclick="confirmPickerCustom()">OK</button>
-    </div>
-    <button type="button" class="picker-close" onclick="closeFieldPicker()">Annuler</button>
-  </div>
-
   <!-- ═══ FAB PHOTO + NOTE ═══ -->
   <div class="fab-wrap" id="fabWrap">
     <div class="fab-thumbs" id="fabThumbs"></div>
@@ -1085,6 +1068,23 @@
   </div>
 
 </div><!-- /app -->
+
+<!-- ═══ PICKER SHEET (bottom-sheet universel pour marque/type/taille/charge) ═══ -->
+<div class="picker-overlay" id="pickerOverlay" onclick="closeFieldPicker()"></div>
+<div class="picker-sheet" id="pickerSheet" role="dialog" aria-modal="true">
+  <div class="picker-handle"></div>
+  <div class="picker-title" id="pickerTitle">Choisir</div>
+  <button type="button" class="btn-scan picker-scan-btn" id="btnPickerScan" onclick="triggerScanForCurrent()">
+    <span class="scan-icon">📷</span>
+    <span>Re-scanner l'étiquette</span>
+  </button>
+  <div class="choice-grid" id="picker-grid"></div>
+  <div class="custom-input-wrap" id="picker-custom">
+    <input class="field" id="picker-custom-input" type="text" placeholder="Précisez…" inputmode="text" autocorrect="off" spellcheck="false">
+    <button class="btn-confirm" onclick="confirmPickerCustom()">OK</button>
+  </div>
+  <button type="button" class="picker-close" onclick="closeFieldPicker()">Annuler</button>
+</div>
 
 <!-- ═══ PHOTO REVIEW MODAL ═══ -->
 <div class="modal-overlay" id="photoModal">
