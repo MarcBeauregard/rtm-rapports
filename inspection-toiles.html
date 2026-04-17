@@ -1750,6 +1750,7 @@
 
   // ─── UPLOAD PHOTOS → via Worker ─────────────────────────
   async function uploadPhotos(recordId) {
+    let failed = 0;
     for (let i = 0; i < photos.length; i++) {
       const p = photos[i];
       const ext      = p.file.type.split('/')[1] || 'jpg';
@@ -1758,13 +1759,22 @@
       form.append('file', p.file, filename);
       form.append('filename', filename);
       form.append('contentType', p.file.type);
+      const url = `${API_BASE}/uploadAttachment/${recordId}/${PHOTOS_FIELD_ID}`;
       try {
-        await fetch(
-          `${API_BASE}/uploadAttachment/${recordId}/${PHOTOS_FIELD_ID}`,
-          { method:'POST', body: form }
-        );
-      } catch(e) { console.warn('Photo upload failed:', e); }
+        const res = await fetch(url, { method:'POST', body: form });
+        if (!res.ok) {
+          const txt = await res.text().catch(() => '(corps illisible)');
+          console.error('[Photo-upload]', filename, 'HTTP', res.status, txt);
+          failed++;
+        } else {
+          console.log('[Photo-upload] OK', filename, p.file.size, 'octets');
+        }
+      } catch(e) {
+        console.error('[Photo-upload]', filename, 'failed:', e);
+        failed++;
+      }
     }
+    if (failed > 0) showToast(`⚠️ ${failed} photo(s) non envoyée(s)`, 4500);
   }
 
   // Archive la photo OCR sur le record Airtable (contre-validation humaine
@@ -1772,18 +1782,29 @@
   // – même structure que celles utilisées par la file d'attente hors-ligne,
   // ce qui permet de réutiliser cette fonction dans flushQueue.
   async function uploadOcrPhoto(recordId, photo) {
-    if (!photo || !photo.dataUrl) return;
+    if (!photo || !photo.dataUrl) {
+      console.warn('[OCR-upload] skipped — no dataUrl on photo', photo);
+      return;
+    }
     const file = dataUrlToFile(photo.dataUrl, photo.filename || 'etiquette-OCR.jpg');
     const form = new FormData();
     form.append('file', file, photo.filename || 'etiquette-OCR.jpg');
     form.append('filename', photo.filename || 'etiquette-OCR.jpg');
     form.append('contentType', file.type);
+    const url = `${API_BASE}/uploadAttachment/${recordId}/${OCR_PHOTO_FIELD_ID}`;
     try {
-      await fetch(
-        `${API_BASE}/uploadAttachment/${recordId}/${OCR_PHOTO_FIELD_ID}`,
-        { method:'POST', body: form }
-      );
-    } catch(e) { console.warn('OCR photo upload failed:', e); }
+      const res = await fetch(url, { method:'POST', body: form });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '(corps illisible)');
+        console.error('[OCR-upload] HTTP', res.status, txt);
+        showToast(`⚠️ Photo OCR non archivée (HTTP ${res.status})`, 4500);
+        return;
+      }
+      console.log('[OCR-upload] OK', recordId, file.size, 'octets');
+    } catch(e) {
+      console.error('[OCR-upload] failed:', e);
+      showToast('⚠️ Photo OCR non envoyée — ' + (e && e.message ? e.message : e), 4500);
+    }
   }
 
   // ─── HISTORY ────────────────────────────────────────────
