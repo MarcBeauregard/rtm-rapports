@@ -98,6 +98,34 @@
     .wave-sep { line-height: 0; display: block; margin-top: -2px; }
     .wave-sep svg { display: block; width: 100%; }
 
+    /* ─── STATS BAR ─── */
+    .stats-bar {
+      display: none;
+      justify-content: space-around;
+      align-items: center;
+      padding: 8px 16px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      gap: 4px;
+    }
+    .stats-bar.visible { display: flex; }
+    .stat-chip {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 12px; font-weight: 600; color: var(--text-muted);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 10px;
+      white-space: nowrap;
+    }
+    .stat-chip .stat-val {
+      font-weight: 800; font-size: 13px;
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-chip .stat-val.ok  { color: var(--success); }
+    .stat-chip .stat-val.nok { color: var(--danger); }
+    .stat-chip .stat-val.avg { color: var(--navy); }
+
     /* ─── EDIT BANNER ─── */
     .edit-banner { display: none; background: var(--amber-light); border-bottom: 1px solid var(--amber); padding: 10px 20px; font-size: 13px; font-weight: 600; color: #92400e; text-align: center; }
     .edit-banner.show { display: block; }
@@ -880,6 +908,14 @@
     </div>
   </div>
 
+  <!-- ═══ STATS BAR ═══ -->
+  <div class="stats-bar" id="statsBar">
+    <div class="stat-chip">✓ <span class="stat-val ok" id="statConf">0</span></div>
+    <div class="stat-chip">✕ <span class="stat-val nok" id="statNC">0</span></div>
+    <div class="stat-chip">⏱ <span class="stat-val avg" id="statAvg">—</span></div>
+    <div class="stat-chip">📊 <span class="stat-val" id="statRate">—</span></div>
+  </div>
+
   <!-- ═══ EDIT BANNER ═══ -->
   <div class="edit-banner" id="editBanner">Mode modification — toile <span id="editBannerNum"></span></div>
 
@@ -943,6 +979,7 @@
             <span class="field-card-status" id="status-num">!</span>
           </div>
           <input class="field-card-input" id="f-num" type="text" placeholder="Ex : T-2024-001" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" inputmode="text" oninput="handleNumInput(this.value)">
+          <div class="history-card" id="numDuplicateCard"></div>
           <div class="history-card" id="numHistoryCard"></div>
           <div class="quick-picks">
             <button class="quick-pick" onclick="pickNum('Illisible ou aucun numéro')">Illisible ou aucun numéro</button>
@@ -1204,6 +1241,74 @@
   const DEFAULT_TYPES   = ['Salle de bain', 'Double cuissarde'];
   const DEFAULT_TAILLES = ['S', 'M', 'L', 'XL', 'XXL'];
   const DEFAULT_CHARGES = ['175 lb', '275 lb', '440 lb', '660 lb', '880 lb'];
+
+  // ── TABLE D'ALIAS MARQUES ──────────────────────────────
+  // L'OCR retourne souvent des variantes (casse, accents, mots supplémentaires).
+  // Chaque clé est un pattern normalisé (norm()) ; la valeur est le nom canonique.
+  // On cherche aussi par inclusion partielle pour les noms longs.
+  const BRAND_ALIASES = {
+    // Arjo (anciennement ArjoHuntleigh)
+    'arjo':            'Arjo',
+    'arjohuntleigh':   'Arjo',
+    'arjo huntleigh':  'Arjo',
+    // Guldmann
+    'guldmann':        'Guldmann',
+    'v. guldmann':     'Guldmann',
+    // Hill-Rom / Hillrom / Liko (marque Hill-Rom)
+    'hillrom':         'Hill-Rom',
+    'hill-rom':        'Hill-Rom',
+    'hill rom':        'Hill-Rom',
+    'liko':            'Hill-Rom (Liko)',
+    // Handicare
+    'handicare':       'Handicare',
+    'handicare ab':    'Handicare',
+    // Prism Medical
+    'prism':           'Prism Medical',
+    'prism medical':   'Prism Medical',
+    'prism medical ltd': 'Prism Medical',
+    // Joerns
+    'joerns':          'Joerns',
+    'joerns healthcare': 'Joerns',
+    // Bestcare / Best Care
+    'bestcare':        'BestCare',
+    'best care':       'BestCare',
+    // Invacare
+    'invacare':        'Invacare',
+    // Molift
+    'molift':          'Molift',
+    // Ergolet
+    'ergolet':         'Ergolet',
+    // Hoyer
+    'hoyer':           'Hoyer',
+    // Medline
+    'medline':         'Medline',
+    // Loca-Médic
+    'loca-medic':      'Loca-Médic',
+    'loca-medic inc':  'Loca-Médic',
+    'loca-medic inc.': 'Loca-Médic',
+    'loca medic':      'Loca-Médic',
+    'locamedic':       'Loca-Médic',
+  };
+  // Normalise une marque OCR vers son nom canonique.
+  // 1) Match exact (norm) → canonique
+  // 2) Match partiel : la plus longue clé contenue dans la valeur normalisée
+  // 3) Sinon retourne la valeur originale (trim)
+  function canonBrand(raw) {
+    if (!raw) return '';
+    const v = String(raw).trim();
+    if (!v) return '';
+    const n = norm(v);
+    // Match exact
+    if (BRAND_ALIASES[n]) return BRAND_ALIASES[n];
+    // Match partiel : cherche la clé la plus longue contenue dans n
+    let best = '', bestLen = 0;
+    for (const key in BRAND_ALIASES) {
+      if (n.includes(key) && key.length > bestLen) {
+        best = BRAND_ALIASES[key]; bestLen = key.length;
+      }
+    }
+    return best || v;
+  }
   // Étapes : 1 tech · 2 étab · 3 détails toile (consolidé) · 4 statut · 5 issues NC
   const LAST_STEP       = 5;
   // Champ cible d'un scan OCR : null = scan global (step 3), sinon nom du champ
@@ -1618,6 +1723,42 @@
         localStorage.setItem('rtm_counterToastSeen', '1');
       }, 600);
     }
+    updateStatsBar();
+  }
+
+  // ─── STATS BAR ──────────────────────────────────────────
+  // Horodatages de chaque soumission pour calculer le temps moyen.
+  let submitTimestamps = [];
+  function updateStatsBar() {
+    const bar = document.getElementById('statsBar');
+    const n = submitted.length;
+    bar.classList.toggle('visible', n > 0);
+    if (n === 0) return;
+    const conf = submitted.filter(s => s.statut === 'Conforme').length;
+    const nc   = n - conf;
+    document.getElementById('statConf').textContent = conf;
+    document.getElementById('statNC').textContent   = nc;
+    // Taux de conformité
+    const pct = Math.round((conf / n) * 100);
+    document.getElementById('statRate').textContent = pct + '%';
+    // Temps moyen entre soumissions
+    if (submitTimestamps.length >= 2) {
+      const diffs = [];
+      for (let i = 1; i < submitTimestamps.length; i++) {
+        diffs.push(submitTimestamps[i] - submitTimestamps[i - 1]);
+      }
+      const avgMs = diffs.reduce((a, b) => a + b, 0) / diffs.length;
+      const avgSec = Math.round(avgMs / 1000);
+      if (avgSec < 60) {
+        document.getElementById('statAvg').textContent = avgSec + 's';
+      } else {
+        const m = Math.floor(avgSec / 60);
+        const s = avgSec % 60;
+        document.getElementById('statAvg').textContent = m + ':' + String(s).padStart(2, '0');
+      }
+    } else {
+      document.getElementById('statAvg').textContent = '—';
+    }
   }
 
   // ─── FAB PHOTO + NOTE ──────────────────────────────────
@@ -1975,7 +2116,31 @@
   function handleNumInput(val) {
     d.num = (val || '').trim();
     refreshFieldCards();
+    checkSessionDuplicate(d.num);
     lookupHistory(d.num);
+  }
+  // Détection doublon local : vérifie si ce n° a déjà été soumis dans la session courante.
+  // Affiche un avertissement inline immédiat (sans attendre l'API Airtable).
+  function checkSessionDuplicate(num) {
+    const dupCard = document.getElementById('numDuplicateCard');
+    if (!dupCard) return;
+    if (!num || num.length < 2 || editingIdx !== null) {
+      dupCard.className = 'history-card'; return;
+    }
+    const nNum = norm(num);
+    const dup = submitted.find((s, i) => i !== editingIdx && norm(s.num) === nNum);
+    if (dup) {
+      haptic(25);
+      const statutLabel = dup.statut === 'Non conforme' ? 'Non conforme' : 'Conforme';
+      dupCard.className = 'history-card show warn';
+      dupCard.innerHTML = `<div class="history-card-title">⚠ Déjà inspectée dans cette session</div>
+        <div class="history-card-detail">
+          ${dup.marque || ''} ${dup.type || ''} — ${statutLabel}
+          <br><em style="font-size:12px">Si c'est voulu, continuez normalement.</em>
+        </div>`;
+    } else {
+      dupCard.className = 'history-card';
+    }
   }
   function handleLocInput(val) {
     d.loc = (val || '').trim();
@@ -2295,7 +2460,7 @@
     }
     // Marque : aucune liste canon (libre) → on enregistre tel quel en custom.
     if (r.marque && only('marque')) {
-      d.marque = String(r.marque).trim();
+      d.marque = canonBrand(r.marque);
       addCustomEntry('marque', d.marque);
       filled.push('marque');
     }
@@ -2602,6 +2767,7 @@
     // "Changer" sont déjà accessibles en permanence depuis le header, donc on
     // peut gagner un tap en allant directement au step 3 après chaque envoi.
     const finalizeSuccess = (recId, queued = false) => {
+      if (!isEdit) submitTimestamps.push(Date.now());
       const entry = { recordId: recId, num:d.num, loc:d.loc, marque:d.marque,
                       type:d.type, taille:d.taille, charge:d.charge,
                       statut:d.statut, issues:[...d.issues], notes:d.notes,
@@ -2684,6 +2850,8 @@
     d = freshData(); editingIdx = null; photos = []; ocrPhoto = null; step = 3;
     scanTarget = null;
     hideHistoryCard();
+    const dupC = document.getElementById('numDuplicateCard');
+    if (dupC) dupC.className = 'history-card';
     document.querySelectorAll('.choice-btn').forEach(b=>b.classList.remove('selected'));
     document.querySelectorAll('.status-btn').forEach(b=>b.classList.remove('dim'));
     resetChecklistUI();
@@ -2702,7 +2870,7 @@
     clearSession();
     session = { tech:'', etab:'' }; sessionStartStep = 1;
     d = freshData(); step = 1; submitted = []; editingIdx = null; photos = []; ocrPhoto = null;
-    scanTarget = null;
+    scanTarget = null; submitTimestamps = [];
     document.querySelectorAll('.choice-btn').forEach(b=>b.classList.remove('selected'));
     document.querySelectorAll('.status-btn').forEach(b=>b.classList.remove('dim'));
     resetChecklistUI();
